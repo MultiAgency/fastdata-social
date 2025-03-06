@@ -145,8 +145,8 @@ const FileUploader = () => {
         }}
         onChange={handleChange}
         multiple
-        maxFiles={5}
-        maxFileSize={3_000_000} // 3MB
+        maxFiles={42}
+        maxFileSize={1_000_000} // 1 MB limit
         minFileSize={0}
         clickable
       >
