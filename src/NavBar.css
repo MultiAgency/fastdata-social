@@ -1,0 +1,22 @@
+#auth.expanded .account-name {
+    padding-bottom: 1.3rem;
+    position: relative;
+}
+
+#auth.expanded .account-name::after {
+    content: "⬇";
+    font-size: 0.666rem;
+    color: #eee;
+    position: absolute;
+    left: 50%;
+    top: 66%;
+}
+
+#auth.expanded .account-name:hover::after {
+    opacity: 0.9;
+}
+
+#auth .near-contract:hover, #auth .near-public-key:hover {
+    scale: 1.05;
+    transition: scale 0.3s ease-in-out;
+}
