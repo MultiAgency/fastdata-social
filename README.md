@@ -10,11 +10,7 @@ first:
 
     yarn
 
-Use two terminal tabs/screens, the first: 
-
-    yarn server
-
-the other:
+serve:
 
     yarn start
 
