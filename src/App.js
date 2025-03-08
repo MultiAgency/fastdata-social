@@ -4,6 +4,7 @@ import NavBar from './NavBar.js';
 import FastNearAuth from './FastNearAuth.js';
 import './styles/basic-responsive.css';
 import './styles/custom.css';
+import './styles/components/CoolButtons.css';
 import * as near from '@fastnear/api'
 
 const App = () => {  

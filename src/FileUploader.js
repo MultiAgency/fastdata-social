@@ -22,11 +22,11 @@ const keyframes = `
 `;
 
 // FileUploader for NEAR testnet
-const FileUploader = ({ 
+const FileUploader = ({
   // Using testnet contract ID by default
-  contractId = 'fastnear.testnet', 
-  accountId, 
-  isSignedIn 
+  contractId = 'fastnear.testnet',
+  accountId,
+  isSignedIn
 }) => {
   const [files, setFiles] = useState([]);
   const [encodedFiles, setEncodedFiles] = useState({});
@@ -111,7 +111,7 @@ const FileUploader = ({
         resolve(base64String);
       };
       reader.onerror = reject;
-      
+
       // Check if the file has a nested file property (from drag and drop)
       const fileToRead = file.file ? file.file : file;
       reader.readAsDataURL(fileToRead);
@@ -191,7 +191,7 @@ const FileUploader = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       // Create an array of File objects
       const fileArray = Array.from(e.dataTransfer.files);
-      
+
       // Convert File objects to format expected by handleChange
       const filesForChange = fileArray.map(file => ({
         id: `file-${Math.random().toString(36).substr(2, 9)}`,
@@ -201,7 +201,7 @@ const FileUploader = ({
         lastModified: file.lastModified,
         file
       }));
-      
+
       handleChange(filesForChange);
     }
   }, [handleChange]);
@@ -216,9 +216,9 @@ const FileUploader = ({
     if (file.type.startsWith('image/')) {
       return (
         <div className="file-preview">
-          <img 
-            src={file.file ? URL.createObjectURL(file.file) : URL.createObjectURL(file)} 
-            alt={file.name} 
+          <img
+            src={file.file ? URL.createObjectURL(file.file) : URL.createObjectURL(file)}
+            alt={file.name}
             className="file-preview-image"
           />
         </div>
@@ -245,40 +245,26 @@ const FileUploader = ({
         <h1>Upload to NEAR</h1>
       </div>
 
-      <div
-        className={`file-upload-zone ${isDragging ? 'drag-active' : ''} ${files.length > 0 ? 'has-files' : ''}`}
+      <Files.default
+        className="file-upload-zone"
+        onChange={handleChange}
+        multiple
+        maxFiles={42}
+        maxFileSize={10_000_000}
+        minFileSize={0}
+        clickable
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
       >
-        <div className="drop-indicators"></div>
-        
-        <Files.default
-          className="files-dropzone-hidden"
-          onChange={handleChange}
-          multiple
-          maxFiles={42}
-          maxFileSize={10_000_000}
-          minFileSize={0}
-          clickable
-        >
+        <div className={`${isDragging ? 'drag-active' : ''} ${files.length > 0 ? 'has-files' : ''}`}>
           <div className="upload-content-wrapper">
-            <div className="file-upload-icon" style={fileUploadIconStyle}>
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4C9.11 4 6.6 5.64 5.35 8.04C2.34 8.36 0 10.91 0 14C0 17.31 2.69 20 6 20H19C21.76 20 24 17.76 24 15C24 12.36 21.95 10.22 19.35 10.04ZM19 18H6C3.79 18 2 16.21 2 14C2 11.95 3.53 10.24 5.56 10.03L6.63 9.92L7.13 8.97C8.08 7.14 9.94 6 12 6C14.62 6 16.88 7.86 17.39 10.43L17.69 11.93L19.22 12.04C20.78 12.14 22 13.45 22 15C22 16.65 20.65 18 19 18ZM8 13H10.55V16H13.45V13H16L12 9L8 13Z"/>
-              </svg>
-            </div>
-            
-            <div className="upload-text-wrapper">
-              <p className="file-upload-text">Drop files here</p>
-              <p className="file-upload-subtext">
-                or click to browse
-              </p>
-            </div>
+            <p className="file-upload-text">Drop files here</p>
+            <p className="file-upload-subtext">or click to browse</p>
           </div>
-        </Files.default>
-      </div>
+        </div>
+      </Files.default>
 
       {/* File list */}
       {files.length > 0 && (
@@ -299,8 +285,8 @@ const FileUploader = ({
                     <span className="not-encoded">Not encoded</span>
                   )}
                 </div>
-                <button 
-                  className="file-remove" 
+                <button
+                  className="file-remove"
                   onClick={() => handleFileRemove(file.id)}
                   aria-label="Remove file"
                 >
@@ -315,8 +301,8 @@ const FileUploader = ({
       {/* Simplified button workflow */}
       <div className="button-workflow">
         <div className="workflow-step">
-          <button 
-            className="clear-button" 
+          <button
+            className="clear-button"
             onClick={handleClearFiles}
             disabled={files.length === 0 || isProcessing}
           >
@@ -325,8 +311,8 @@ const FileUploader = ({
         </div>
 
         <div className="workflow-step">
-          <button 
-            className="encode-button" 
+          <button
+            className="encode-button"
             onClick={encodeFilesToBase64}
             disabled={files.length === 0 || isProcessing || Object.keys(encodedFiles).length === files.length}
           >
@@ -337,8 +323,8 @@ const FileUploader = ({
         <div className="workflow-arrow">→</div>
 
         <div className="workflow-step">
-          <button 
-            className="near-button" 
+          <button
+            className="near-button"
             onClick={handleSendToNear}
             disabled={!isSignedIn || Object.keys(encodedFiles).length === 0 || isProcessing}
           >

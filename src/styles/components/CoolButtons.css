@@ -1,0 +1,118 @@
+/* Cool, cartoony button styles */
+.app .file-uploader .button-workflow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem auto;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border: 2px solid #000;
+    border-radius: 8px;
+}
+
+.app .file-uploader .workflow-step {
+    flex: 1;
+}
+
+.app .file-uploader .workflow-step button {
+    width: 100%;
+    padding: 1.2rem !important;
+    /* Larger font size for better readability */
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    cursor: pointer;
+    /* Extremely defined borders */
+    border: 5px solid #000 !important;
+    /* High contrast colors */
+    background: #000 !important;
+    color: #fff !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    /* Add text shadow for better legibility */
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5) !important;
+    /* Box shadow to make buttons "pop" */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 0 0 5px #fff, 0 0 0 7px #000 !important;
+    transition: all 0.3s ease;
+}
+
+.app .file-uploader .workflow-step .clear-button {
+    background: #4CAF50 !important;
+    border-color: #000 !important;
+}
+
+.app .file-uploader .workflow-step .encode-button {
+    background: #3498db !important;
+    border-color: #000 !important;
+}
+
+.app .file-uploader .workflow-step .near-button {
+    background: #0072CE !important;
+    border-color: #000 !important;
+}
+
+.app .file-uploader .workflow-step button:hover:not(:disabled) {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4), 0 0 0 5px #fff, 0 0 0 7px #000 !important;
+}
+
+/* Clear button hover effect */
+.app .file-uploader .workflow-step .clear-button:hover:not(:disabled) {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4), 0 0 0 5px #fff, 0 0 0 7px #000, 0 0 20px rgba(76, 175, 80, 0.6) !important;
+}
+
+/* Encode button hover effect */
+.app .file-uploader .workflow-step .encode-button:hover:not(:disabled) {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4), 0 0 0 5px #fff, 0 0 0 7px #000, 0 0 20px rgba(52, 152, 219, 0.6) !important;
+}
+
+/* NEAR button hover effect */
+.app .file-uploader .workflow-step .near-button:hover:not(:disabled) {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4), 0 0 0 5px #fff, 0 0 0 7px #000, 0 0 20px rgba(0, 114, 206, 0.6) !important;
+}
+
+/* Highly visible disabled state */
+.app .file-uploader .workflow-step button:disabled {
+    background: #6c757d !important;
+    color: #fff !important;
+    border-color: #000 !important;
+    cursor: not-allowed;
+    /* Still visible when disabled */
+    opacity: 0.9 !important;
+    /* Add diagonal stripes pattern for visual indication */
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(0, 0, 0, 0.2) 10px,
+        rgba(0, 0, 0, 0.2) 20px
+    ) !important;
+}
+
+.app .file-uploader .workflow-arrow {
+    font-size: 2rem;
+    color: #000;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .app .file-uploader .button-workflow {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .app .file-uploader .workflow-arrow {
+        transform: rotate(90deg);
+        margin: 1rem 0;
+    }
+    
+    .app .file-uploader .workflow-step {
+        width: 100%;
+    }
+    
+    .app .file-uploader .workflow-step button {
+        font-size: 1.1rem !important;
+        padding: 1rem !important;
+    }
+} 
