@@ -58,7 +58,7 @@ export function Upload(props) {
             method: "__fastdata_fastfs",
             args: ffs64,
             gas: "1",
-          }).catch(() => {
+          }).finally(() => {
             file.status = Status.Success;
             file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.ffs.simple.relativePath}`;
             console.log("uploaded", file.txId);
