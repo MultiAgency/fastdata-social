@@ -1,14 +1,11 @@
-import { requestSignIn } from "@fastnear/api";
-import { Constants } from "../../hooks/constants.js";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
 
 export function SignInNavbar(props) {
+  const { signIn } = useWalletSelector();
   return (
     <>
       <li className="nav-item">
-        <button
-          className="btn btn-primary"
-          onClick={() => requestSignIn({ contractId: Constants.CONTRACT_ID })}
-        >
+        <button className="btn btn-primary" onClick={() => signIn()}>
           Sign In
         </button>
       </li>

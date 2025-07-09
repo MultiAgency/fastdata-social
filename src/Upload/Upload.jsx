@@ -1,9 +1,9 @@
-import { useAccountId } from "../hooks/useAccountId.js";
 import Files from "react-files";
 import { useCallback, useState } from "react";
 import "./Upload.css";
 import { encodeFfs } from "../hooks/fastfs.js";
 import { Constants } from "../hooks/constants.js";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
 
 const Status = {
   Pending: "pending",
@@ -11,14 +11,6 @@ const Status = {
   Success: "success",
   Error: "error",
 };
-
-function clearHistory(obj) {
-  for (const prop in obj) {
-    if (obj.hasOwnProperty(prop)) {
-      delete obj[prop];
-    }
-  }
-}
 
 async function transformFiles(relativePath, files) {
   relativePath = relativePath.replace(/^\//, "");
@@ -44,7 +36,7 @@ async function transformFiles(relativePath, files) {
 }
 
 export function Upload(props) {
-  const accountId = useAccountId();
+  const { signedAccountId: accountId, callFunction } = useWalletSelector();
   const [uploading, setUploading] = useState(false);
   const [relativePath, setRelativePath] = useState("/");
   const [files, setFiles] = useState([]);
@@ -61,22 +53,17 @@ export function Upload(props) {
           const ffs64 = encodeFfs(file.ffs);
           file.status = Status.Uploading;
           setUploadingFiles([...files]);
-          clearHistory(near.localTxHistory());
-          file.txId = await near.sendTx({
-            receiverId: Constants.CONTRACT_ID,
-            actions: [
-              near.actions.functionCall({
-                methodName: "__fastdata_fastfs",
-                gas: "1",
-                argsBase64: ffs64,
-              }),
-            ],
-            waitUntil: "INCLUDED_FINAL",
+          file.txId = await callFunction({
+            contractId: Constants.CONTRACT_ID,
+            method: "__fastdata_fastfs",
+            args: ffs64,
+            gas: "1",
+          }).catch(() => {
+            file.status = Status.Success;
+            file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.ffs.simple.relativePath}`;
+            console.log("uploaded", file.txId);
+            setUploadingFiles([...files]);
           });
-          file.status = Status.Success;
-          file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.ffs.simple.relativePath}`;
-          console.log("uploaded", file.txId);
-          setUploadingFiles([...files]);
         })
       );
     },
@@ -88,21 +75,9 @@ export function Upload(props) {
       <div className="mb-3 text-center">
         <h1>Upload to FastFS</h1>
       </div>
-      <div className="mb-5">
-        <h4>Step 1: Specify relative path (optional)</h4>
-        <div>
-          <input
-            disabled={uploading}
-            className="form-control"
-            onChange={(e) => setRelativePath(e.target.value)}
-            placeholder={"/"}
-            value={relativePath}
-          />
-        </div>
-      </div>
 
       <div className="mb-5">
-        <h4>Step 2: Select Files to upload</h4>
+        <h4>Select Files to upload</h4>
         <div>
           <Files
             inputProps={{
@@ -127,63 +102,93 @@ export function Upload(props) {
         </div>
       </div>
 
-      <div>
-        <h4>Step 3: Upload</h4>
+      <div
+        className={`mb-5 ${files.length === 0 ? "d-none" : ""}`}
+        key="relative-path"
+      >
+        <h4>Relative path (optional)</h4>
         <div>
-          <div className="mb-2">
-            {files.map((file, index) => (
-              <div key={`f-${index}`}>
-                <code>{relativePath + file.name}</code>
-                <code className="ms-2">{file.type}</code>
-                <code className="ms-2">{file.size} bytes</code>
-                <button
-                  className="btn btn-outline-dark border-0"
-                  title="remove"
-                  onClick={() => {
-                    setFiles((prevFiles) =>
-                      prevFiles.filter((_, i) => i !== index)
-                    );
-                  }}
-                >
-                  ❌
-                </button>
-              </div>
-            ))}
-            {uploadingFiles.map((file, index) => (
-              <div key={`up-${index}`}>
-                {file.status === Status.Success ? (
-                  <a href={file.url} target="_blank">
-                    {file.url}
-                  </a>
-                ) : (
-                  <>
-                    <code>{file.ffs.simple.relativePath}</code>
-                    <code className="ms-2">
-                      {file.ffs.simple.content.mimeType}
-                    </code>
-                    <code className="ms-2">{file.size} bytes</code>
-                    <span className="ms-2">{file.status}</span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <button
-            disabled={uploading || files.length === 0}
-            className="btn btn-primary btn-lg"
-            onClick={async () => {
-              setUploading(true);
-              const uploadingFiles = await transformFiles(relativePath, files);
-              setUploadingFiles(uploadingFiles);
-              setFiles([]);
-              await startUpload(uploadingFiles);
-              setUploading(false);
-            }}
-          >
-            Upload!
-          </button>
+          <input
+            disabled={uploading}
+            className="form-control"
+            onChange={(e) => setRelativePath(e.target.value)}
+            placeholder={"/"}
+            value={relativePath}
+          />
         </div>
+      </div>
+
+      <div className={`mb-5 ${files.length === 0 ? "d-none" : ""}`}>
+        <button
+          disabled={uploading || files.length === 0}
+          className="btn btn-primary btn-lg"
+          onClick={async () => {
+            setUploading(true);
+            const uploadingFiles = await transformFiles(relativePath, files);
+            setUploadingFiles(uploadingFiles);
+            setFiles([]);
+            await startUpload(uploadingFiles);
+            setUploading(false);
+          }}
+        >
+          Upload!
+        </button>
+      </div>
+
+      <div className={`mb-5 ${files.length === 0 ? "d-none" : ""}`}>
+        <h4>Files to upload</h4>
+        <div>
+          {files.map((file, index) => (
+            <div key={`f-${index}`} className="mb-1">
+              <button
+                className="btn btn-outline-dark border-0"
+                title="remove"
+                onClick={() => {
+                  setFiles((prevFiles) =>
+                    prevFiles.filter((_, i) => i !== index)
+                  );
+                }}
+              >
+                ❌
+              </button>
+              <code className="text-black">{relativePath + file.name}</code>
+              <code className="text-secondary ms-2">{file.type}</code>
+              <code className="text-secondary ms-2">{file.size} bytes</code>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={`mb-5 ${uploadingFiles.length === 0 ? "d-none" : ""}`}>
+        <h4>Uploaded files</h4>
+        {uploadingFiles.map((file, index) => (
+          <div key={`up-${index}`}>
+            {file.status === Status.Success ? (
+              <a href={file.url} target="_blank">
+                {file.url}
+              </a>
+            ) : (
+              <>
+                <code className="text-black">
+                  {file.ffs.simple.relativePath}
+                </code>
+                <code className="text-secondary ms-2">
+                  {file.ffs.simple.content.mimeType}
+                </code>
+                <code className="text-secondary ms-2">{file.size} bytes</code>
+                {file.status === Status.Uploading ? (
+                  <div
+                    className="spinner-border spinner-border-sm vertical-align-middle ms-2"
+                    role="status"
+                  >
+                    <span className="visually-hidden">Uploading...</span>
+                  </div>
+                ) : (
+                  <span className="ms-2">{file.status}</span>
+                )}
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

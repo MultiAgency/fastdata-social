@@ -1,10 +1,10 @@
 import "./App.css";
 import { Header } from "./Header/Header.jsx";
-import { useAccountId } from "./hooks/useAccountId.js";
 import { Upload } from "./Upload/Upload.jsx";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
 
 function App() {
-  const accountId = useAccountId();
+  const { signedAccountId: accountId } = useWalletSelector();
 
   return (
     <div className="container-fluid">

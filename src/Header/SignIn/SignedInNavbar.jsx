@@ -1,6 +1,7 @@
-import { signOut } from "@fastnear/api";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
 
 export function SignedInNavbar(props) {
+  const { signOut } = useWalletSelector();
   return (
     <>
       <li className="nav-item">

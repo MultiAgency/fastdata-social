@@ -19,5 +19,5 @@ const FastfsSchema = new (class BorshSchema {
 })();
 
 export function encodeFfs(ffs) {
-  return near.utils.bytesToBase64(borshSerialize(FastfsSchema.FastfsData, ffs));
+  return borshSerialize(FastfsSchema.FastfsData, ffs);
 }
