@@ -17,6 +17,7 @@ import { setupHereWallet } from "@near-wallet-selector/here-wallet";
 import { setupNearMobileWallet } from "@near-wallet-selector/near-mobile-wallet";
 import { setupWelldoneWallet } from "@near-wallet-selector/welldone-wallet";
 import { WalletSelectorProvider } from "@near-wallet-selector/react-hook";
+import { setupIntearWallet } from "@near-wallet-selector/intear-wallet";
 
 const walletSelectorConfig = {
   network: Constants.NETWORK,
@@ -25,12 +26,13 @@ const walletSelectorConfig = {
     setupMeteorWallet(),
     setupMeteorWalletApp({ contractId: Constants.CONTRACT_ID }),
     setupHotWallet(),
+    setupIntearWallet(),
+    setupMyNearWallet(),
     setupLedger(),
     setupSender(),
     setupHereWallet(),
     setupNearMobileWallet(),
     setupWelldoneWallet(),
-    setupMyNearWallet(),
   ],
 };
 
