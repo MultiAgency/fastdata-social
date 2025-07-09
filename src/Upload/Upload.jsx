@@ -177,7 +177,7 @@ export function Upload(props) {
                 <code className="text-secondary ms-2">{file.size} bytes</code>
                 {file.status === Status.Uploading ? (
                   <div
-                    className="spinner-border spinner-border-sm vertical-align-middle ms-2"
+                    className="spinner-border spinner-border-sm align-middle ms-2"
                     role="status"
                   >
                     <span className="visually-hidden">Uploading...</span>

@@ -6,7 +6,7 @@ export function SignedInNavbar(props) {
     <>
       <li className="nav-item">
         <div
-          className="me-2 text-truncate d-inline-block vertical-align-middle"
+          className="me-2 text-truncate d-inline-block align-middle"
           style={{ maxWidth: "15em" }}
         >
           {accountId}
