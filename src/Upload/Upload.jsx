@@ -85,30 +85,33 @@ export function Upload(props) {
       await Promise.all(
         files.map(async (file) => {
           file.status = Status.Uploading;
-          setUploadingFiles([...files]);
           file.txIds = [];
           file.uploadedParts = 0;
+          setUploadingFiles([...files]);
           for (const part of file.ffs) {
             const ffs64 = encodeFfs(part);
             let txId;
-            txId = callFunction({
+            txId = await callFunction({
               contractId: Constants.CONTRACT_ID,
               method: "__fastdata_fastfs",
               args: ffs64,
               gas: "1",
-            }).finally(() => {
-              file.uploadedParts += 1;
-              setUploadingFiles([...files]);
-              console.log("uploaded", txId);
-            });
+            })
+              .catch(() => {})
+              .finally(() => {
+                file.uploadedParts += 1;
+                setUploadingFiles([...files]);
+                console.log("uploaded", txId);
+
+                if (file.uploadedParts === file.numParts) {
+                  file.uploads = file.status = Status.Success;
+                  file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.path}`;
+
+                  setUploadingFiles([...files]);
+                }
+              });
             file.txIds.push(txId);
           }
-          file.uploads = await Promise.allSettled(file.txIds).finally(() => {
-            file.status = Status.Success;
-            file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.path}`;
-
-            setUploadingFiles([...files]);
-          });
         })
       );
     },
