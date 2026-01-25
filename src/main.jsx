@@ -21,7 +21,10 @@ import { setupIntearWallet } from "@near-wallet-selector/intear-wallet";
 
 const walletSelectorConfig = {
   network: Constants.NETWORK,
-  createAccessKeyFor: Constants.CONTRACT_ID,
+  createAccessKeyFor: {
+    contractId: Constants.CONTRACT_ID,
+    methodNames: [],
+  },
   modules: [
     setupMeteorWallet(),
     setupMeteorWalletApp({ contractId: Constants.CONTRACT_ID }),

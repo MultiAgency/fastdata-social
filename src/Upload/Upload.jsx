@@ -12,25 +12,59 @@ const Status = {
   Error: "error",
 };
 
+const ChunkSize = 1 << 20;
+
 async function transformFiles(relativePath, files) {
   relativePath = relativePath.replace(/^\//, "");
   const result = [];
   for (const file of files) {
     const data = await file.arrayBuffer();
     const encoded = new Uint8Array(data);
-    result.push({
-      status: Status.Pending,
-      size: file.size,
-      ffs: {
-        simple: {
-          relativePath: relativePath + file.name,
-          content: {
+    const path = relativePath + file.name;
+    if (encoded.length > ChunkSize) {
+      const parts = [];
+      const nonce = Math.floor(Date.now() / 1000) - 1769376240;
+      for (let offset = 0; offset < encoded.length; offset += ChunkSize) {
+        parts.push({
+          partial: {
+            relativePath: path,
+            offset,
+            fullSize: encoded.length,
+            contentChunk: encoded.slice(
+              offset,
+              Math.min(offset + ChunkSize, encoded.length)
+            ),
             mimeType: file.type,
-            content: encoded,
+            nonce,
           },
-        },
-      },
-    });
+        });
+      }
+      result.push({
+        status: Status.Pending,
+        size: file.size,
+        path,
+        numParts: parts.length,
+        ffs: parts,
+      });
+    } else {
+      result.push({
+        status: Status.Pending,
+        size: file.size,
+        path,
+        numParts: 1,
+        ffs: [
+          {
+            simple: {
+              relativePath: path,
+              content: {
+                mimeType: file.type,
+                content: encoded,
+              },
+            },
+          },
+        ],
+      });
+    }
   }
   return result;
 }
@@ -50,18 +84,29 @@ export function Upload(props) {
     async (files) => {
       await Promise.all(
         files.map(async (file) => {
-          const ffs64 = encodeFfs(file.ffs);
           file.status = Status.Uploading;
           setUploadingFiles([...files]);
-          file.txId = await callFunction({
-            contractId: Constants.CONTRACT_ID,
-            method: "__fastdata_fastfs",
-            args: ffs64,
-            gas: "1",
-          }).finally(() => {
+          file.txIds = [];
+          file.uploadedParts = 0;
+          for (const part of file.ffs) {
+            const ffs64 = encodeFfs(part);
+            let txId;
+            txId = callFunction({
+              contractId: Constants.CONTRACT_ID,
+              method: "__fastdata_fastfs",
+              args: ffs64,
+              gas: "1",
+            }).finally(() => {
+              file.uploadedParts += 1;
+              setUploadingFiles([...files]);
+              console.log("uploaded", txId);
+            });
+            file.txIds.push(txId);
+          }
+          file.uploads = await Promise.allSettled(file.txIds).finally(() => {
             file.status = Status.Success;
-            file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.ffs.simple.relativePath}`;
-            console.log("uploaded", file.txId);
+            file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.path}`;
+
             setUploadingFiles([...files]);
           });
         })
@@ -88,7 +133,7 @@ export function Upload(props) {
             onChange={handleChange}
             multiple
             maxFiles={10}
-            maxFileSize={1_400_000}
+            maxFileSize={32_000_000}
             minFileSize={0}
             clickable
           >
@@ -168,20 +213,19 @@ export function Upload(props) {
               </a>
             ) : (
               <>
-                <code className="text-black">
-                  {file.ffs.simple.relativePath}
-                </code>
-                <code className="text-secondary ms-2">
-                  {file.ffs.simple.content.mimeType}
-                </code>
+                <code className="text-black">{file.path}</code>
+                <code className="text-secondary ms-2">{file.type}</code>
                 <code className="text-secondary ms-2">{file.size} bytes</code>
                 {file.status === Status.Uploading ? (
-                  <div
-                    className="spinner-border spinner-border-sm align-middle ms-2"
-                    role="status"
-                  >
-                    <span className="visually-hidden">Uploading...</span>
-                  </div>
+                  <>
+                    <div
+                      className="spinner-border spinner-border-sm align-middle ms-2"
+                      role="status"
+                    >
+                      <span className="visually-hidden">Uploading...</span>
+                    </div>
+                    ({file.uploadedParts} / {file.numParts})
+                  </>
                 ) : (
                   <span className="ms-2">{file.status}</span>
                 )}
