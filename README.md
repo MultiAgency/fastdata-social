@@ -2,13 +2,15 @@
 
 ## Social Graph on FastData
 
-Bringing together members of the NEAR Community
+Community Networking Experience
 
 **Live Demo:** https://fastnear-social.up.railway.app
 
 ## Overview
 
-NEAR Directory lets you connect your NEAR account with others by "following" them using the [FastData protocol](https://hackmd.io/@fastnear/__fastdata) (created by [FastNear](https://fastnear.com)). The data goes on the blockchain.
+NEAR Directory enables connecting your NEAR account with others by "following" them using [FastData](https://hackmd.io/@fastnear/__fastdata) (created by [FastNear](https://fastnear.com)).
+
+All data goes on-chain, written to the transaction ledger, not contract state.
 
 ## How It Works
 
@@ -22,7 +24,7 @@ FastData Indexer → ScyllaDB
 FastKV API → This Frontend
 ```
 
-**Key Insight:** The FastData protocol stores data in the transaction ledger, not contract state. The indexer captures this data from failed transactions.
+**Key Insight:** FastData stores data in the transaction ledger, not contract state. The indexer captures this data regardless of transaction success/failure.
 
 ## Features
 
