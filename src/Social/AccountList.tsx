@@ -1,4 +1,5 @@
 import { formatAccountId } from "../utils/validation";
+import { Button } from "@/components/ui/button";
 
 interface AccountListProps {
   accounts: string[];
@@ -9,9 +10,6 @@ interface AccountListProps {
   loading: boolean;
 }
 
-/**
- * AccountList component displays a list of accounts (following or followers)
- */
 export function AccountList({
   accounts,
   onUnfollow,
@@ -19,19 +17,17 @@ export function AccountList({
   type,
   loading,
 }: AccountListProps) {
-  // Loading state
   if (loading) {
     return (
-      <div className="text-center py-4">
-        <div className="spinner-border spinner-border-sm" role="status">
-          <span className="visually-hidden">Loading...</span>
+      <div className="flex flex-col items-center py-12">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" role="status">
+          <span className="sr-only">Loading...</span>
         </div>
-        <p className="mt-2 text-secondary">Loading {type}...</p>
+        <p className="mt-3 text-sm text-muted-foreground font-mono">loading {type}_</p>
       </div>
     );
   }
 
-  // Empty state
   if (!accounts || accounts.length === 0) {
     const emptyMessage =
       type === "following"
@@ -39,35 +35,38 @@ export function AccountList({
         : "No followers yet.";
 
     return (
-      <div className="text-center py-4 text-secondary">
-        <p>{emptyMessage}</p>
+      <div className="text-center py-12 text-muted-foreground">
+        <p className="text-sm">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className="list-group">
+    <div className="rounded-xl border border-border bg-card/50 divide-y divide-border">
       {accounts.map((accountId) => (
         <div
           key={accountId}
-          className="list-group-item d-flex justify-content-between align-items-center"
+          className="flex items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors"
         >
-          <div>
-            <code className="text-dark">{accountId}</code>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary/50" />
+            <code className="text-sm font-mono">{accountId}</code>
             {accountId.length === 64 && (
-              <small className="text-muted ms-2">
+              <span className="text-xs text-muted-foreground font-mono">
                 ({formatAccountId(accountId)})
-              </small>
+              </span>
             )}
           </div>
           {type === "following" && onUnfollow && (
-            <button
-              className="btn btn-sm btn-outline-danger"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive font-mono text-xs"
               onClick={() => onUnfollow(accountId)}
               disabled={disabled}
             >
-              Unfollow
-            </button>
+              unfollow
+            </Button>
           )}
         </div>
       ))}

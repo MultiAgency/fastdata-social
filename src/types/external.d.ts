@@ -32,10 +32,3 @@ declare module 'react-files' {
 
   export default class Files extends Component<FilesProps> {}
 }
-
-declare module 'react-singleton-hook' {
-  export function singletonHook<T>(
-    initialState: T,
-    hook: () => T
-  ): () => T;
-}

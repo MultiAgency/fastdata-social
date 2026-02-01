@@ -6,17 +6,18 @@ import { fetchFollowing, fetchFollowers, checkApiHealth } from "../hooks/kvApi";
 import { isValidNearAccount } from "../utils/validation";
 import { TransactionAlert } from "./TransactionAlert";
 import { AccountList } from "./AccountList";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Transaction } from "../types";
-import "./Social.css";
 
 export function Social() {
   const { accountId } = useWallet();
   const near = useNear();
 
-  // State management
   const [following, setFollowing] = useState<string[]>([]);
   const [followers, setFollowers] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"following" | "followers">("following");
   const [transacting, setTransacting] = useState<boolean>(false);
   const [lastTx, setLastTx] = useState<Transaction | null>(null);
   const [pendingAccount, setPendingAccount] = useState<string>("");
@@ -24,25 +25,21 @@ export function Social() {
   const [loading, setLoading] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string>("");
 
-  // Load data from API or localStorage
   const loadData = useCallback(async () => {
     if (!accountId) return;
     const FOLLOWING_KEY = `fastnear_following_${accountId}`;
 
     setLoading(true);
 
-    // Check API health
     const isApiHealthy = await checkApiHealth();
     setApiAvailable(isApiHealthy);
 
     if (isApiHealthy) {
-      // Load from API
       const followingData = await fetchFollowing(accountId);
       const followersData = await fetchFollowers(accountId);
 
       if (followingData !== null) {
         setFollowing(followingData);
-        // Update localStorage as cache
         localStorage.setItem(FOLLOWING_KEY, JSON.stringify(followingData));
       }
 
@@ -50,7 +47,6 @@ export function Social() {
         setFollowers(followersData);
       }
     } else {
-      // Fall back to localStorage
       const stored = localStorage.getItem(FOLLOWING_KEY);
       if (stored) {
         try {
@@ -67,12 +63,10 @@ export function Social() {
     setLoading(false);
   }, [accountId]);
 
-  // Load data on mount and when account changes
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Validate account input
   const validateAccount = useCallback((account: string): boolean => {
     if (!account) {
       setValidationError("Please enter an account ID");
@@ -93,12 +87,10 @@ export function Social() {
     return true;
   }, [accountId]);
 
-  // Handle follow action
   const handleFollow = useCallback(
     async (targetAccount: string) => {
       if (!validateAccount(targetAccount)) return;
 
-      // Check if already following
       if (following.includes(targetAccount)) {
         setValidationError("Already following this account");
         return;
@@ -109,7 +101,6 @@ export function Social() {
       const followingKey = `fastnear_following_${accountId}`;
 
       try {
-        // Create KV transaction args - plain JSON, no encoding!
         const kvArgs = {
           [`graph/follow/${targetAccount}`]: "",
         };
@@ -125,12 +116,10 @@ export function Social() {
 
         const txId = result?.transaction?.hash as string | void;
 
-        // Optimistic update
         const newFollowing = [...following, targetAccount];
         setFollowing(newFollowing);
         localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
-        // Set transaction status
         setLastTx({
           type: "follow",
           account: targetAccount,
@@ -138,16 +127,13 @@ export function Social() {
           status: "success",
         });
 
-        // Clear input
         setPendingAccount("");
 
-        // Reload from API after indexer delay
         setTimeout(() => {
           loadData();
         }, 3000);
       } catch (error: unknown) {
         console.error("Follow error:", error);
-        // Still show success - KV transactions often "fail" but work
         setLastTx({
           type: "follow",
           account: targetAccount,
@@ -156,7 +142,6 @@ export function Social() {
           error: true,
         });
 
-        // Optimistic update even on error
         const newFollowing = [...following, targetAccount];
         setFollowing(newFollowing);
         localStorage.setItem(followingKey, JSON.stringify(newFollowing));
@@ -173,14 +158,12 @@ export function Social() {
     [following, accountId, near, validateAccount, loadData]
   );
 
-  // Handle unfollow action
   const handleUnfollow = useCallback(
     async (targetAccount: string) => {
       setTransacting(true);
       const followingKey = `fastnear_following_${accountId}`;
 
       try {
-        // Create KV transaction with null deletion marker
         const kvArgs = {
           [`graph/follow/${targetAccount}`]: null,
         };
@@ -196,12 +179,10 @@ export function Social() {
 
         const txId = result?.transaction?.hash as string | void;
 
-        // Optimistic update
         const newFollowing = following.filter((id) => id !== targetAccount);
         setFollowing(newFollowing);
         localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
-        // Set transaction status
         setLastTx({
           type: "unfollow",
           account: targetAccount,
@@ -209,13 +190,11 @@ export function Social() {
           status: "success",
         });
 
-        // Reload from API after indexer delay
         setTimeout(() => {
           loadData();
         }, 3000);
       } catch (error: unknown) {
         console.error("Unfollow error:", error);
-        // Still show success - KV transactions often "fail" but work
         setLastTx({
           type: "unfollow",
           account: targetAccount,
@@ -224,7 +203,6 @@ export function Social() {
           error: true,
         });
 
-        // Optimistic update even on error
         const newFollowing = following.filter((id) => id !== targetAccount);
         setFollowing(newFollowing);
         localStorage.setItem(followingKey, JSON.stringify(newFollowing));
@@ -240,40 +218,37 @@ export function Social() {
   );
 
   return (
-    <div>
-      <div className="mb-3 text-center">
-        <h1>FastData KV Social Graph</h1>
-        <p className="text-secondary">
-          Follow accounts using FastData KV protocol (no contract required!)
+    <div className="animate-fade-up">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">Social Graph</h1>
+        <p className="text-sm text-muted-foreground font-mono">
+          follow accounts via FastData KV protocol
         </p>
       </div>
 
-      {/* API Status Banner */}
       {!apiAvailable && (
-        <div className="alert alert-warning" role="alert">
-          <strong>KV API unavailable</strong>
-          <br />
-          <small>
-            Run <code>kv-api-server</code> to see following/followers lists.
-            Write operations still work.
-          </small>
-        </div>
+        <Alert variant="default" className="mb-4 border-l-2 border-l-accent bg-accent/5">
+          <AlertDescription>
+            <span className="font-semibold text-accent">KV API unavailable</span>
+            <br />
+            <span className="text-sm text-muted-foreground">
+              Run <code className="font-mono bg-secondary px-1.5 py-0.5 rounded text-xs">kv-api-server</code> to see following/followers.
+              Write operations still work.
+            </span>
+          </AlertDescription>
+        </Alert>
       )}
 
-      {/* Transaction Alert */}
       <TransactionAlert
         transaction={lastTx}
         onDismiss={() => setLastTx(null)}
       />
 
-      {/* Follow Input */}
-      <div className="mb-4">
-        <h4>Follow Someone</h4>
-        <div className="input-group">
-          <input
-            type="text"
-            className={`form-control ${validationError ? "is-invalid" : ""}`}
-            placeholder="Enter NEAR account (e.g., alice.near)"
+      <div className="mb-8 p-5 rounded-xl border border-border bg-card/50">
+        <label className="text-sm font-medium text-muted-foreground mb-3 block font-mono">follow_</label>
+        <div className="flex gap-2">
+          <Input
+            placeholder="alice.near"
             value={pendingAccount}
             onChange={(e) => {
               setPendingAccount(e.target.value);
@@ -285,70 +260,57 @@ export function Social() {
               }
             }}
             disabled={transacting}
+            className={`font-mono bg-secondary/50 ${validationError ? "border-destructive" : ""}`}
           />
-          <button
-            className="btn btn-primary"
+          <Button
             onClick={() => handleFollow(pendingAccount)}
             disabled={transacting || !pendingAccount}
+            className="glow-primary font-mono"
           >
             {transacting ? (
-              <>
-                <span
-                  className="spinner-border spinner-border-sm me-2"
-                  role="status"
-                  aria-hidden="true"
-                ></span>
-                Following...
-              </>
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                ...
+              </span>
             ) : (
-              "Follow"
+              "follow"
             )}
-          </button>
+          </Button>
         </div>
         {validationError && (
-          <div className="invalid-feedback d-block">{validationError}</div>
+          <p className="text-sm text-destructive mt-2 font-mono">{validationError}</p>
         )}
       </div>
 
-      {/* Sub-tabs for Following/Followers */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === "following" ? "active" : ""}`}
-            onClick={() => setActiveTab("following")}
-          >
-            Following ({following.length})
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === "followers" ? "active" : ""}`}
-            onClick={() => setActiveTab("followers")}
-          >
-            Followers ({followers.length})
-          </button>
-        </li>
-      </ul>
-
-      {/* Account Lists */}
-      {activeTab === "following" ? (
-        <AccountList
-          accounts={following}
-          onUnfollow={handleUnfollow}
-          disabled={transacting}
-          type="following"
-          currentUser={accountId}
-          loading={loading}
-        />
-      ) : (
-        <AccountList
-          accounts={followers}
-          disabled={transacting}
-          type="followers"
-          currentUser={accountId}
-          loading={loading}
-        />
-      )}
+      <Tabs defaultValue="following">
+        <TabsList className="bg-secondary/50 border border-border/50">
+          <TabsTrigger value="following" className="font-mono text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            following ({following.length})
+          </TabsTrigger>
+          <TabsTrigger value="followers" className="font-mono text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            followers ({followers.length})
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="following">
+          <AccountList
+            accounts={following}
+            onUnfollow={handleUnfollow}
+            disabled={transacting}
+            type="following"
+            currentUser={accountId}
+            loading={loading}
+          />
+        </TabsContent>
+        <TabsContent value="followers">
+          <AccountList
+            accounts={followers}
+            disabled={transacting}
+            type="followers"
+            currentUser={accountId}
+            loading={loading}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

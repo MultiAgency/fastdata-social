@@ -84,6 +84,23 @@ export async function fetchFollowers(accountId: string): Promise<string[] | null
 }
 
 /**
+ * Fetch both following and followers for a given account in parallel
+ */
+export async function fetchConnections(accountId: string): Promise<{
+  following: string[];
+  followers: string[];
+}> {
+  const [following, followers] = await Promise.all([
+    fetchFollowing(accountId),
+    fetchFollowers(accountId),
+  ]);
+  return {
+    following: following ?? [],
+    followers: followers ?? [],
+  };
+}
+
+/**
  * Check if KV API server is running
  * @returns {Promise<boolean>} - Whether the API server is available
  */

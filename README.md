@@ -74,7 +74,7 @@ curl "https://fastdata.up.railway.app/v1/kv/query?predecessor_id=james.near&curr
 ### Prerequisites
 
 - Node.js 18+ recommended
-- Yarn 1.22.22 (specified in package.json)
+- Bun 1.2+ (specified in package.json)
 
 ### Local Setup
 
@@ -97,13 +97,13 @@ cd fastkv-server
 
 ```bash
 # Install dependencies
-yarn install
+bun install
 
 # Run locally (connects to localhost:3001 API)
-yarn dev
+bun dev
 
 # Build for production (connects to https://fastdata.up.railway.app)
-yarn build
+bun run build
 ```
 
 ## FastData KV Protocol

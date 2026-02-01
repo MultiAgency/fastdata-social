@@ -1,0 +1,206 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { fetchKeys, fetchValues } from "./explorerApi";
+import { TreeNode } from "./TreeNode";
+import { ValueDetail } from "./ValueDetail";
+import { Breadcrumb } from "./Breadcrumb";
+import { JsonView } from "./JsonView";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+interface ExplorerViewProps {
+  accountId: string;
+}
+
+const QUICK_PATHS = ["profile", "graph", "post", "index", "settings", "widget"];
+
+export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAccountId }) => {
+  const [currentAccount, setCurrentAccount] = useState(initialAccountId);
+  const [query, setQuery] = useState("");
+  const [data, setData] = useState<Record<string, any> | null>(null);
+  const [rawData, setRawData] = useState<Record<string, any> | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedValue, setSelectedValue] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<"tree" | "json">("tree");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<string[]>([]);
+
+  const explore = useCallback(async (pattern?: string) => {
+    const q = pattern || query || `${currentAccount}/*`;
+    setLoading(true);
+    setError(null);
+    setSelectedPath(null);
+    try {
+      const keysResult = await fetchKeys([q]);
+      if (Object.keys(keysResult).length === 0) {
+        setError("No data found");
+        setData(null);
+        setRawData(null);
+      } else {
+        setData(keysResult);
+        const valResult = await fetchValues([q]);
+        setRawData(valResult);
+      }
+    } catch (e) {
+      setError("Failed to fetch data");
+    }
+    setLoading(false);
+  }, [query, currentAccount]);
+
+  useEffect(() => {
+    setBreadcrumb([currentAccount]);
+    explore(`${currentAccount}/*`);
+  }, [currentAccount]);
+
+  const handleQuickPath = (path: string) => {
+    const pattern = `${currentAccount}/${path}/**`;
+    setQuery(pattern);
+    setBreadcrumb([currentAccount, path]);
+    explore(pattern);
+  };
+
+  const handleBreadcrumbNav = (segments: string[]) => {
+    if (segments.length === 1) {
+      setCurrentAccount(segments[0]);
+      setQuery("");
+    } else {
+      const path = segments.slice(1).join("/");
+      const pattern = `${segments[0]}/${path}/**`;
+      setQuery(pattern);
+      setBreadcrumb(segments);
+      explore(pattern);
+    }
+  };
+
+  const handleSelect = (path: string, value: any) => {
+    setSelectedPath(path);
+    setSelectedValue(value);
+  };
+
+  const handleNavigate = (newAccountId: string) => {
+    setCurrentAccount(newAccountId);
+    setQuery("");
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      const parts = query.replace(/\/?\*+$/, "").split("/");
+      setBreadcrumb(parts);
+      explore(query);
+    } else {
+      explore();
+    }
+  };
+
+  const treeEntries: [string, any][] = data
+    ? Object.entries(data).flatMap(([_acct, val]) =>
+        typeof val === "object" && val !== null ? Object.entries(val).map(([k, v]) => [k, v] as [string, any]) : []
+      )
+    : [];
+
+  return (
+    <div className="animate-fade-up">
+      <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`${currentAccount}/**`}
+          className="flex-1 bg-secondary/50 border-border font-mono text-sm placeholder:text-muted-foreground/50"
+        />
+        <Button
+          type="submit"
+          disabled={loading}
+          className="glow-primary font-mono text-sm"
+        >
+          {loading ? "..." : "explore_"}
+        </Button>
+      </form>
+
+      <div className="flex gap-1.5 mb-4 flex-wrap">
+        {QUICK_PATHS.map((p) => (
+          <button
+            type="button"
+            key={p}
+            onClick={() => handleQuickPath(p)}
+            className="bg-secondary border border-border rounded-lg px-2.5 py-1 text-muted-foreground text-xs cursor-pointer font-mono hover:border-primary/30 hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-ring"
+            aria-label={`Explore ${p}`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-4">
+        <Breadcrumb segments={breadcrumb} onNavigate={handleBreadcrumbNav} />
+      </div>
+
+      <div className="flex gap-1 mb-4">
+        <button
+          type="button"
+          onClick={() => setViewMode("tree")}
+          aria-label="Tree view"
+          aria-pressed={viewMode === "tree"}
+          className={`border border-border rounded-lg px-3 py-1.5 text-xs cursor-pointer font-mono transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
+            viewMode === "tree" ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:text-foreground hover:border-border"
+          }`}
+        >
+          tree
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("json")}
+          aria-label="JSON view"
+          aria-pressed={viewMode === "json"}
+          className={`border border-border rounded-lg px-3 py-1.5 text-xs cursor-pointer font-mono transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
+            viewMode === "json" ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:text-foreground hover:border-border"
+          }`}
+        >
+          json
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-card border border-border rounded-xl p-4 text-destructive text-sm mb-4 flex items-center justify-between">
+          <span className="font-mono">{error}</span>
+          <button
+            onClick={() => explore()}
+            className="bg-secondary border border-border rounded-lg px-3 py-1 text-foreground text-xs cursor-pointer font-mono hover:border-primary/30 transition-colors"
+          >
+            retry_
+          </button>
+        </div>
+      )}
+
+      {viewMode === "json" ? (
+        rawData && <JsonView data={rawData} />
+      ) : (
+        <div className="flex gap-4">
+          <div className={`${selectedPath ? "flex-1" : "w-full"} min-w-0 bg-card border border-border rounded-xl p-4 max-h-[600px] overflow-auto`}>
+            {loading && !data && <div className="text-muted-foreground font-mono text-sm">loading_</div>}
+            {treeEntries.map(([key, val]) => (
+              <TreeNode
+                key={key}
+                name={key}
+                value={val}
+                path={key}
+                depth={0}
+                accountId={currentAccount}
+                onSelect={handleSelect}
+                onNavigate={handleNavigate}
+              />
+            ))}
+            {!loading && treeEntries.length === 0 && !error && (
+              <div className="text-muted-foreground text-sm font-mono italic">no data</div>
+            )}
+          </div>
+          {selectedPath && (
+            <div className="w-[360px] shrink-0">
+              <ValueDetail accountId={currentAccount} path={selectedPath} value={selectedValue} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
