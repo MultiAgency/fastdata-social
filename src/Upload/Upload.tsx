@@ -1,11 +1,14 @@
 import Files from "react-files";
 import { useCallback, useState } from "react";
+import type { ReactFilesFile } from "react-files";
 import "./Upload.css";
-import { encodeFfs } from "../hooks/fastfs.js";
-import { Constants } from "../hooks/constants.js";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
+import { encodeFfs } from "../hooks/fastfs";
+import { Constants } from "../hooks/constants";
+import { useWallet } from "../providers/WalletProvider";
+import { useNear } from "@near-kit/react";
+import type { FileToUpload, FileStatus, FastfsData } from "../types";
 
-const Status = {
+const Status: Record<string, FileStatus> = {
   Pending: "pending",
   Uploading: "uploading",
   Success: "success",
@@ -13,16 +16,27 @@ const Status = {
 };
 
 const ChunkSize = 1 << 20;
+const MAX_RELATIVE_PATH_LENGTH = 1024;
 
-async function transformFiles(relativePath, files) {
+async function transformFiles(
+  relativePath: string,
+  files: ReactFilesFile[]
+): Promise<FileToUpload[]> {
+  if (relativePath.includes("..")) {
+    throw new Error("Invalid path: '..' segments not allowed");
+  }
   relativePath = relativePath.replace(/^\//, "");
-  const result = [];
+  const result: FileToUpload[] = [];
   for (const file of files) {
+    const mimeType = file.type || "application/octet-stream";
     const data = await file.arrayBuffer();
     const encoded = new Uint8Array(data);
     const path = relativePath + file.name;
+    if (path.length > MAX_RELATIVE_PATH_LENGTH) {
+      throw new Error(`Path too long (${path.length} chars, max ${MAX_RELATIVE_PATH_LENGTH}): ${path}`);
+    }
     if (encoded.length > ChunkSize) {
-      const parts = [];
+      const parts: FastfsData[] = [];
       const nonce = Math.floor(Date.now() / 1000) - 1769376240;
       for (let offset = 0; offset < encoded.length; offset += ChunkSize) {
         parts.push({
@@ -34,7 +48,7 @@ async function transformFiles(relativePath, files) {
               offset,
               Math.min(offset + ChunkSize, encoded.length)
             ),
-            mimeType: file.type,
+            mimeType,
             nonce,
           },
         });
@@ -42,6 +56,7 @@ async function transformFiles(relativePath, files) {
       result.push({
         status: Status.Pending,
         size: file.size,
+        type: mimeType,
         path,
         numParts: parts.length,
         ffs: parts,
@@ -50,6 +65,7 @@ async function transformFiles(relativePath, files) {
       result.push({
         status: Status.Pending,
         size: file.size,
+        type: mimeType,
         path,
         numParts: 1,
         ffs: [
@@ -57,7 +73,7 @@ async function transformFiles(relativePath, files) {
             simple: {
               relativePath: path,
               content: {
-                mimeType: file.type,
+                mimeType,
                 content: encoded,
               },
             },
@@ -69,53 +85,71 @@ async function transformFiles(relativePath, files) {
   return result;
 }
 
-export function Upload(props) {
-  const { signedAccountId: accountId, callFunction } = useWalletSelector();
-  const [uploading, setUploading] = useState(false);
-  const [relativePath, setRelativePath] = useState("/");
-  const [files, setFiles] = useState([]);
-  const [uploadingFiles, setUploadingFiles] = useState([]);
+export function Upload() {
+  const { accountId } = useWallet();
+  const near = useNear();
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [relativePath, setRelativePath] = useState<string>("/");
+  const [files, setFiles] = useState<ReactFilesFile[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<FileToUpload[]>([]);
+  const [error, setError] = useState<string>("");
 
-  const handleChange = (newFiles) => {
+  const handleChange = (newFiles: ReactFilesFile[]) => {
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
   };
 
   const startUpload = useCallback(
-    async (files) => {
+    async (files: FileToUpload[]) => {
+      if (!near) throw new Error("Wallet not connected");
+
+      const initial = files.map((f) => ({ ...f, status: Status.Uploading, txIds: [] as (string | void)[], uploadedParts: 0 }));
+      setUploadingFiles(initial);
+
       await Promise.all(
-        files.map(async (file) => {
-          file.status = Status.Uploading;
-          file.txIds = [];
-          file.uploadedParts = 0;
-          setUploadingFiles([...files]);
+        initial.map(async (file, fileIndex) => {
+          const update = (updater: (file: FileToUpload) => Partial<FileToUpload>) => {
+            setUploadingFiles((prev) =>
+              prev.map((f, i) => (i === fileIndex ? { ...f, ...updater(f) } : f))
+            );
+          };
+
           for (const part of file.ffs) {
             const ffs64 = encodeFfs(part);
-            let txId;
-            txId = await callFunction({
-              contractId: Constants.CONTRACT_ID,
-              method: "__fastdata_fastfs",
-              args: ffs64,
-              gas: "1",
-            })
-              .catch(() => {})
-              .finally(() => {
-                file.uploadedParts += 1;
-                setUploadingFiles([...files]);
-                console.log("uploaded", txId);
 
-                if (file.uploadedParts === file.numParts) {
-                  file.uploads = file.status = Status.Success;
-                  file.url = `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${file.path}`;
+            try {
+              const result = await near.call(
+                Constants.CONTRACT_ID,
+                "__fastdata_fastfs",
+                ffs64,
+                { gas: "1 Tgas" }
+              );
 
-                  setUploadingFiles([...files]);
-                }
+              const txId = result?.transaction?.hash as string | void;
+
+              update((f) => {
+                const newUploaded = (f.uploadedParts ?? 0) + 1;
+                const done = newUploaded === f.numParts;
+                return {
+                  uploadedParts: newUploaded,
+                  txIds: [...(f.txIds ?? []), txId],
+                  ...(done
+                    ? { status: Status.Success, url: `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${f.path}` }
+                    : {}),
+                };
               });
-            file.txIds.push(txId);
+            } catch (error) {
+              console.error("Upload error:", error);
+              update((f) => ({
+                status: Status.Error,
+                txIds: [...(f.txIds ?? []), undefined],
+              }));
+              break;
+            }
           }
         })
       );
     },
-    [accountId]
+    [accountId, near]
   );
 
   return (
@@ -171,16 +205,23 @@ export function Upload(props) {
           disabled={uploading || files.length === 0}
           className="btn btn-primary btn-lg"
           onClick={async () => {
-            setUploading(true);
-            const uploadingFiles = await transformFiles(relativePath, files);
-            setUploadingFiles(uploadingFiles);
-            setFiles([]);
-            await startUpload(uploadingFiles);
-            setUploading(false);
+            setError("");
+            try {
+              setUploading(true);
+              const uploadingFiles = await transformFiles(relativePath, files);
+              setUploadingFiles(uploadingFiles);
+              setFiles([]);
+              await startUpload(uploadingFiles);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Upload failed");
+            } finally {
+              setUploading(false);
+            }
           }}
         >
           Upload!
         </button>
+        {error && <div className="text-danger mt-2">{error}</div>}
       </div>
 
       <div className={`mb-5 ${files.length === 0 ? "d-none" : ""}`}>
@@ -211,9 +252,14 @@ export function Upload(props) {
         {uploadingFiles.map((file, index) => (
           <div key={`up-${index}`}>
             {file.status === Status.Success ? (
-              <a href={file.url} target="_blank">
+              <a href={file.url} target="_blank" rel="noopener noreferrer">
                 {file.url}
               </a>
+            ) : file.status === Status.Error ? (
+              <>
+                <code className="text-black">{file.path}</code>
+                <code className="text-danger ms-2">Upload failed</code>
+              </>
             ) : (
               <>
                 <code className="text-black">{file.path}</code>

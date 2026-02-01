@@ -1,24 +1,24 @@
-import { formatAccountId } from "../utils/validation.js";
+import { formatAccountId } from "../utils/validation";
+
+interface AccountListProps {
+  accounts: string[];
+  onUnfollow?: (account: string) => void;
+  disabled: boolean;
+  type: "following" | "followers";
+  currentUser: string | null;
+  loading: boolean;
+}
 
 /**
  * AccountList component displays a list of accounts (following or followers)
- *
- * @param {Object} props
- * @param {string[]} props.accounts - Array of account IDs
- * @param {Function} props.onUnfollow - Callback for unfollow action (only for following list)
- * @param {boolean} props.disabled - Whether interactions are disabled
- * @param {string} props.type - "following" or "followers"
- * @param {string} props.currentUser - Current user's account ID
- * @param {boolean} props.loading - Whether data is loading
  */
 export function AccountList({
   accounts,
   onUnfollow,
   disabled,
   type,
-  currentUser,
   loading,
-}) {
+}: AccountListProps) {
   // Loading state
   if (loading) {
     return (

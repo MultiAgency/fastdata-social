@@ -1,32 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
-import { Constants } from "../hooks/constants.js";
-import { fetchFollowing, fetchFollowers, checkApiHealth } from "../hooks/kvApi.js";
-import { isValidNearAccount } from "../utils/validation.js";
-import { TransactionAlert } from "./TransactionAlert.jsx";
-import { AccountList } from "./AccountList.jsx";
+import { useWallet } from "../providers/WalletProvider";
+import { useNear } from "@near-kit/react";
+import { Constants } from "../hooks/constants";
+import { fetchFollowing, fetchFollowers, checkApiHealth } from "../hooks/kvApi";
+import { isValidNearAccount } from "../utils/validation";
+import { TransactionAlert } from "./TransactionAlert";
+import { AccountList } from "./AccountList";
+import type { Transaction } from "../types";
 import "./Social.css";
 
 export function Social() {
-  const { signedAccountId: accountId, callFunction } = useWalletSelector();
+  const { accountId } = useWallet();
+  const near = useNear();
 
   // State management
-  const [following, setFollowing] = useState([]);
-  const [followers, setFollowers] = useState([]);
-  const [activeTab, setActiveTab] = useState("following");
-  const [transacting, setTransacting] = useState(false);
-  const [lastTx, setLastTx] = useState(null);
-  const [pendingAccount, setPendingAccount] = useState("");
-  const [apiAvailable, setApiAvailable] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [validationError, setValidationError] = useState("");
-
-  // LocalStorage keys
-  const FOLLOWING_KEY = `fastnear_following_${accountId}`;
+  const [following, setFollowing] = useState<string[]>([]);
+  const [followers, setFollowers] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"following" | "followers">("following");
+  const [transacting, setTransacting] = useState<boolean>(false);
+  const [lastTx, setLastTx] = useState<Transaction | null>(null);
+  const [pendingAccount, setPendingAccount] = useState<string>("");
+  const [apiAvailable, setApiAvailable] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<string>("");
 
   // Load data from API or localStorage
   const loadData = useCallback(async () => {
     if (!accountId) return;
+    const FOLLOWING_KEY = `fastnear_following_${accountId}`;
 
     setLoading(true);
 
@@ -52,13 +53,19 @@ export function Social() {
       // Fall back to localStorage
       const stored = localStorage.getItem(FOLLOWING_KEY);
       if (stored) {
-        setFollowing(JSON.parse(stored));
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) setFollowing(parsed);
+        } catch (err) {
+          console.warn('Failed to parse localStorage data, removing corrupted key:', err);
+          localStorage.removeItem(FOLLOWING_KEY);
+        }
       }
       setFollowers([]);
     }
 
     setLoading(false);
-  }, [accountId, FOLLOWING_KEY]);
+  }, [accountId]);
 
   // Load data on mount and when account changes
   useEffect(() => {
@@ -66,7 +73,7 @@ export function Social() {
   }, [loadData]);
 
   // Validate account input
-  const validateAccount = useCallback((account) => {
+  const validateAccount = useCallback((account: string): boolean => {
     if (!account) {
       setValidationError("Please enter an account ID");
       return false;
@@ -88,7 +95,7 @@ export function Social() {
 
   // Handle follow action
   const handleFollow = useCallback(
-    async (targetAccount) => {
+    async (targetAccount: string) => {
       if (!validateAccount(targetAccount)) return;
 
       // Check if already following
@@ -99,6 +106,7 @@ export function Social() {
 
       setTransacting(true);
       setValidationError("");
+      const followingKey = `fastnear_following_${accountId}`;
 
       try {
         // Create KV transaction args - plain JSON, no encoding!
@@ -106,23 +114,27 @@ export function Social() {
           [`graph/follow/${targetAccount}`]: "",
         };
 
-        const txId = await callFunction({
-          contractId: Constants.KV_CONTRACT_ID,
-          method: "__fastdata_kv",
-          args: kvArgs,
-          gas: Constants.KV_GAS,
-        });
+        if (!near) throw new Error("Wallet not connected");
+
+        const result = await near.call(
+          Constants.KV_CONTRACT_ID,
+          "__fastdata_kv",
+          kvArgs,
+          { gas: "10 Tgas" }
+        );
+
+        const txId = result?.transaction?.hash as string | void;
 
         // Optimistic update
         const newFollowing = [...following, targetAccount];
         setFollowing(newFollowing);
-        localStorage.setItem(FOLLOWING_KEY, JSON.stringify(newFollowing));
+        localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
         // Set transaction status
         setLastTx({
           type: "follow",
           account: targetAccount,
-          txId,
+          txId: txId || null,
           status: "success",
         });
 
@@ -133,13 +145,13 @@ export function Social() {
         setTimeout(() => {
           loadData();
         }, 3000);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Follow error:", error);
         // Still show success - KV transactions often "fail" but work
         setLastTx({
           type: "follow",
           account: targetAccount,
-          txId: error.transactionHashes?.[0] || null,
+          txId: null,
           status: "success",
           error: true,
         });
@@ -147,7 +159,7 @@ export function Social() {
         // Optimistic update even on error
         const newFollowing = [...following, targetAccount];
         setFollowing(newFollowing);
-        localStorage.setItem(FOLLOWING_KEY, JSON.stringify(newFollowing));
+        localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
         setPendingAccount("");
 
@@ -158,13 +170,14 @@ export function Social() {
         setTransacting(false);
       }
     },
-    [following, accountId, callFunction, validateAccount, loadData, FOLLOWING_KEY]
+    [following, accountId, near, validateAccount, loadData]
   );
 
   // Handle unfollow action
   const handleUnfollow = useCallback(
-    async (targetAccount) => {
+    async (targetAccount: string) => {
       setTransacting(true);
+      const followingKey = `fastnear_following_${accountId}`;
 
       try {
         // Create KV transaction with null deletion marker
@@ -172,23 +185,27 @@ export function Social() {
           [`graph/follow/${targetAccount}`]: null,
         };
 
-        const txId = await callFunction({
-          contractId: Constants.KV_CONTRACT_ID,
-          method: "__fastdata_kv",
-          args: kvArgs,
-          gas: Constants.KV_GAS,
-        });
+        if (!near) throw new Error("Wallet not connected");
+
+        const result = await near.call(
+          Constants.KV_CONTRACT_ID,
+          "__fastdata_kv",
+          kvArgs,
+          { gas: "10 Tgas" }
+        );
+
+        const txId = result?.transaction?.hash as string | void;
 
         // Optimistic update
         const newFollowing = following.filter((id) => id !== targetAccount);
         setFollowing(newFollowing);
-        localStorage.setItem(FOLLOWING_KEY, JSON.stringify(newFollowing));
+        localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
         // Set transaction status
         setLastTx({
           type: "unfollow",
           account: targetAccount,
-          txId,
+          txId: txId || null,
           status: "success",
         });
 
@@ -196,13 +213,13 @@ export function Social() {
         setTimeout(() => {
           loadData();
         }, 3000);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Unfollow error:", error);
         // Still show success - KV transactions often "fail" but work
         setLastTx({
           type: "unfollow",
           account: targetAccount,
-          txId: error.transactionHashes?.[0] || null,
+          txId: null,
           status: "success",
           error: true,
         });
@@ -210,7 +227,7 @@ export function Social() {
         // Optimistic update even on error
         const newFollowing = following.filter((id) => id !== targetAccount);
         setFollowing(newFollowing);
-        localStorage.setItem(FOLLOWING_KEY, JSON.stringify(newFollowing));
+        localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
         setTimeout(() => {
           loadData();
@@ -219,7 +236,7 @@ export function Social() {
         setTransacting(false);
       }
     },
-    [following, callFunction, loadData, FOLLOWING_KEY]
+    [following, accountId, near, loadData]
   );
 
   return (
@@ -262,7 +279,7 @@ export function Social() {
               setPendingAccount(e.target.value);
               setValidationError("");
             }}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleFollow(pendingAccount);
               }

@@ -1,7 +1,7 @@
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
+import { useWallet } from "../../providers/WalletProvider";
 
-export function SignedInNavbar(props) {
-  const { signedAccountId: accountId, signOut } = useWalletSelector();
+export function SignedInNavbar() {
+  const { accountId, disconnectWallet } = useWallet();
   return (
     <>
       <li className="nav-item">
@@ -11,7 +11,7 @@ export function SignedInNavbar(props) {
         >
           {accountId}
         </div>
-        <button className="btn btn-secondary" onClick={() => signOut()}>
+        <button className="btn btn-secondary" onClick={disconnectWallet}>
           Sign Out
         </button>
       </li>

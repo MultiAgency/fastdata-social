@@ -1,39 +1,32 @@
 {
-  "name": "fastfs-upload-demo",
+  "name": "near-directory",
   "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@near-wallet-selector/core": "^9.3.0",
-    "@near-wallet-selector/hot-wallet": "^9.3.0",
-    "@near-wallet-selector/intear-wallet": "^9.3.0",
-    "@near-wallet-selector/ledger": "^9.3.0",
-    "@near-wallet-selector/meteor-wallet": "^9.3.0",
-    "@near-wallet-selector/meteor-wallet-app": "^9.3.0",
-    "@near-wallet-selector/modal-ui": "^9.3.0",
-    "@near-wallet-selector/my-near-wallet": "^9.3.0",
-    "@near-wallet-selector/near-mobile-wallet": "^9.3.0",
-    "@near-wallet-selector/react-hook": "^9.3.0",
-    "@near-wallet-selector/sender": "^9.3.0",
-    "@near-wallet-selector/welldone-wallet": "^9.3.0",
+    "@hot-labs/near-connect": "latest",
+    "@near-kit/react": "latest",
     "@popperjs/core": "^2.11.6",
     "bootstrap": "^5.3.0",
     "borsh": "^2.0.0",
-    "near-api-js": "^5",
+    "near-kit": "latest",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-files": "^3.0.3",
     "react-singleton-hook": "^4.0.1"
   },
   "devDependencies": {
+    "@types/node": "^25.1.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "globals": "^15.12.0",
+    "typescript": "^5.9.3",
     "vite": "^6.0.1",
     "vite-plugin-node-polyfills": "^0.24.0"
   },

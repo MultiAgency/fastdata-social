@@ -1,4 +1,5 @@
-import { Constants } from "./constants.js";
+import { Constants } from "./constants";
+import type { KVQueryResponse } from "../types";
 
 /**
  * Fetch accounts that the given accountId follows
@@ -10,11 +11,8 @@ import { Constants } from "./constants.js";
  *     { "predecessor_id": "james.near", "key": "graph/follow/alice.near", "value": "" }
  *   ]
  * }
- *
- * @param {string} accountId - The account to fetch following list for
- * @returns {Promise<string[] | null>} - Array of account IDs or null if API unavailable
  */
-export async function fetchFollowing(accountId) {
+export async function fetchFollowing(accountId: string): Promise<string[] | null> {
   try {
     const params = new URLSearchParams({
       predecessor_id: accountId,
@@ -24,20 +22,17 @@ export async function fetchFollowing(accountId) {
     });
 
     const response = await fetch(
-      `${Constants.API_BASE_URL}/v1/kv/query?${params}`
+      `${Constants.API_BASE_URL}/v1/kv/query?${params}`,
+      { signal: AbortSignal.timeout(10_000) }
     );
 
     if (!response.ok) throw new Error("API request failed");
-    const data = await response.json();
-
-    // Debug: Log the raw API response
-    console.log("Following API response:", JSON.stringify(data, null, 2));
+    const data: KVQueryResponse = await response.json();
 
     // Parse response: extract account from key
     // "graph/follow/alice.near" → "alice.near"
     const accounts = (data.entries || []).map((entry) => {
       const key = entry.key;
-      console.log(`Entry: key=${entry.key}, value=${JSON.stringify(entry.value)}`);
       return key.replace("graph/follow/", "");
     });
 
@@ -62,7 +57,7 @@ export async function fetchFollowing(accountId) {
  * @param {string} accountId - The account to fetch followers for
  * @returns {Promise<string[] | null>} - Array of account IDs or null if API unavailable
  */
-export async function fetchFollowers(accountId) {
+export async function fetchFollowers(accountId: string): Promise<string[] | null> {
   try {
     const params = new URLSearchParams({
       current_account_id: "social.near",
@@ -71,11 +66,12 @@ export async function fetchFollowers(accountId) {
     });
 
     const response = await fetch(
-      `${Constants.API_BASE_URL}/v1/kv/reverse?${params}`
+      `${Constants.API_BASE_URL}/v1/kv/reverse?${params}`,
+      { signal: AbortSignal.timeout(10_000) }
     );
 
     if (!response.ok) throw new Error("API request failed");
-    const data = await response.json();
+    const data: KVQueryResponse = await response.json();
 
     // Parse response: extract predecessor_id (who set the key)
     const accounts = (data.entries || []).map((entry) => entry.predecessor_id);
@@ -93,7 +89,9 @@ export async function fetchFollowers(accountId) {
  */
 export async function checkApiHealth() {
   try {
-    const response = await fetch(`${Constants.API_BASE_URL}/health`);
+    const response = await fetch(`${Constants.API_BASE_URL}/health`, {
+      signal: AbortSignal.timeout(10_000),
+    });
     return response.ok;
   } catch (error) {
     return false;

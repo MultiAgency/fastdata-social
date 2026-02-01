@@ -1,6 +1,6 @@
-import { AccountNavbar } from "./SignIn/AccountNavbar.jsx";
+import { AccountNavbar } from "./SignIn/AccountNavbar";
 
-export function Header(props) {
+export function Header() {
   return (
     <nav className="sticky-top navbar navbar-expand-lg bg-body-tertiary">
       <div className="container-fluid">
@@ -21,7 +21,7 @@ export function Header(props) {
         <div className="collapse navbar-collapse" id="navbarText">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
-              <a className="nav-link" href="https://fastfs.io" target="_blank">
+              <a className="nav-link" href="https://fastfs.io" target="_blank" rel="noopener noreferrer">
                 Docs
               </a>
             </li>

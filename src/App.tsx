@@ -1,19 +1,19 @@
 import { useState } from "react";
 import "./App.css";
-import { Header } from "./Header/Header.jsx";
-import { Upload } from "./Upload/Upload.jsx";
-import { Social } from "./Social/Social.jsx";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
+import { Header } from "./Header/Header";
+import { Upload } from "./Upload/Upload";
+import { Social } from "./Social/Social";
+import { useWallet } from "./providers/WalletProvider";
 
 function App() {
-  const { signedAccountId: accountId } = useWalletSelector();
-  const [activeTab, setActiveTab] = useState("upload");
+  const { isConnected } = useWallet();
+  const [activeTab, setActiveTab] = useState<"upload" | "social">("upload");
 
   return (
     <div className="container-fluid">
-      <Header accountId={accountId} />
+      <Header />
       <div className="container mb-5">
-        {accountId ? (
+        {isConnected ? (
           <div>
             {/* Tab Navigation */}
             <ul className="nav nav-tabs mb-4">

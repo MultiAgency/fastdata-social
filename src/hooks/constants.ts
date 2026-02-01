@@ -1,7 +1,9 @@
 // FastData Protocol Configuration
 // Two sub-protocols: FastFS (file storage) and KV (key-value)
 
-export const Constants = {
+import type { AppConstants } from "../types";
+
+export const Constants: AppConstants = {
   // FastFS Configuration
   CONTRACT_ID: "fastfs.near", // For FastFS file uploads
 
@@ -22,15 +24,6 @@ export const Constants = {
     nodeUrl: "https://rpc.mainnet.fastnear.com",
   },
 };
-//
-// export const ConstantsTestnet = {
-//   CONTRACT_ID: "fastfs.testnet",
-//   KV_CONTRACT_ID: "social.testnet",
-//   NETWORK: {
-//     networkId: "testnet",
-//     nodeUrl: "https://rpc.testnet.fastnear.com",
-//   },
-// };
 
 // Protocol Documentation
 //

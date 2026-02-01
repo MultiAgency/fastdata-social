@@ -1,28 +1,30 @@
-import { Constants } from "../hooks/constants.js";
-import { getTxExplorerUrl } from "../utils/validation.js";
+import { Constants } from "../hooks/constants";
+import { getTxExplorerUrl } from "../utils/validation";
+import type { Transaction } from "../types";
+
+interface TransactionAlertProps {
+  transaction: Transaction | null;
+  onDismiss: () => void;
+}
 
 /**
  * TransactionAlert component displays the latest transaction status
  * with educational messages about KV transaction behavior
- *
- * @param {Object} props
- * @param {Object} props.transaction - Transaction object { type, account, txId, status, error }
- * @param {Function} props.onDismiss - Callback to clear the transaction alert
  */
-export function TransactionAlert({ transaction, onDismiss }) {
+export function TransactionAlert({ transaction, onDismiss }: TransactionAlertProps) {
   if (!transaction) return null;
 
   const { type, account, txId, status, error } = transaction;
 
   // Determine alert styling based on status
-  const getAlertClass = () => {
+  const getAlertClass = (): string => {
     if (error) return "alert-warning";
     if (status === "processing") return "alert-info";
     return "alert-success";
   };
 
   // Generate user-friendly message
-  const getMessage = () => {
+  const getMessage = (): JSX.Element | string => {
     if (error) {
       return (
         <>

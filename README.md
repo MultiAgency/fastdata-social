@@ -1,14 +1,14 @@
 # NEAR Directory
 
-## Social Graph on FastData
+Social Graph built using [FastData](https://hackmd.io/@fastnear/__fastdata)
 
-Community Networking Experience
+> courtesy of [FastNear](https://fastnear.com)
 
 **Live Demo:** https://fastnear-social.up.railway.app
 
 ## Overview
 
-NEAR Directory enables connecting your NEAR account with others by "following" them using [FastData](https://hackmd.io/@fastnear/__fastdata) (created by [FastNear](https://fastnear.com)).
+NEAR Directory enables connecting your NEAR account with others by "following" them.
 
 All data goes on-chain, written to the transaction ledger, not contract state.
 
@@ -32,10 +32,23 @@ FastKV API → This Frontend
 - **Followers List** - See who follows you (reverse lookup)
 - **Network Visualization** (coming soon)
 
+### FastFS File Upload
+
+- Drag & drop files up to 32,000,000 bytes (~30.5 MB)
+- Automatic chunking for files >1MB
+- Files hosted at `https://{accountId}.fastfs.io/fastfs.near/{path}`
+- Contract: fastfs.near, Method: \_\_fastdata_fastfs, Gas: 1 Tgas/chunk
+
+### FastFS Technical Details
+
+- **Chunk Size:** 1,048,576 bytes (1 MiB) exactly
+- **Nonce:** Unix timestamp offset for upload deduplication
+- **Alignment:** Chunk offsets must align to 1 MB boundaries
+
 ## Tech Stack
 
-- React + Vite
-- NEAR Wallet Selector
+- TypeScript + React + Vite
+- @hot-labs/near-connect (wallet integration)
 - FastData Indexer
 - FastKV API
 
@@ -44,22 +57,52 @@ FastKV API → This Frontend
 | Development | `http://localhost:3001`           |
 | Production  | `https://fastdata.up.railway.app` |
 
+### Available Endpoints
+
+- `GET /health` - Check API server status
+- `GET /v1/kv/query` - Query key-value pairs
+- `GET /v1/kv/reverse` - Reverse lookup (followers)
+
 ### Example Query
 
 ```bash
-curl "https://fastdata.up.railway.app/v1/kv/query?predecessor_id=james.near&current_account_id=social.near"
+curl "https://fastdata.up.railway.app/v1/kv/query?predecessor_id=james.near&current_account_id=social.near&key_prefix=graph/follow/&exclude_null=true"
 ```
 
 ## Development
+
+### Prerequisites
+
+- Node.js 18+ recommended
+- Yarn 1.22.22 (specified in package.json)
+
+### Local Setup
+
+**1. Start the FastKV API Server (optional but recommended)**
+
+The app requires a local API server for social graph features:
+
+```bash
+# Clone the API server
+git clone https://github.com/MultiAgency/fastkv-server
+cd fastkv-server
+
+# Follow setup instructions in that repository
+# Server should run on http://localhost:3001
+```
+
+**Note:** The frontend will work without the API server, but social graph features will use localStorage fallback and won't sync with the blockchain.
+
+**2. Start the Frontend**
 
 ```bash
 # Install dependencies
 yarn install
 
-# Run locally (uses localhost:3001 API)
+# Run locally (connects to localhost:3001 API)
 yarn dev
 
-# Build for production
+# Build for production (connects to https://fastdata.up.railway.app)
 yarn build
 ```
 
@@ -74,6 +117,17 @@ Follow/unfollow actions use the `__fastdata_kv` method:
 // Unfollow
 { "graph/follow/root.near": null }
 ```
+
+**Configuration:**
+
+- Contract: `social.near`
+- Method: `__fastdata_kv`
+- Gas: 10 Tgas per transaction
+- **Max Keys:** 256 key-value pairs per transaction
+
+## Transaction Behavior
+
+KV transactions may show as "failed" in your wallet - this is expected. The `__fastdata_kv` method doesn't exist on the contract, but FastData indexer still captures the data from transaction arguments.
 
 ## Related Repositories
 
