@@ -1,55 +1,67 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { fetchKeys, fetchValues } from "./explorerApi";
-import { TreeNode } from "./TreeNode";
-import { ValueDetail } from "./ValueDetail";
-import { Breadcrumb } from "./Breadcrumb";
-import { JsonView } from "./JsonView";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useClient } from "../../hooks/useClient";
+import { Breadcrumb } from "./Breadcrumb";
+import { JsonView } from "./JsonView";
+import { TreeNode } from "./TreeNode";
+import { ValueDetail } from "./ValueDetail";
 
 interface ExplorerViewProps {
   accountId: string;
 }
 
-const QUICK_PATHS = ["profile", "graph", "post", "index", "settings", "widget"];
+const QUICK_PATHS = ["profile", "graph", "index"];
 
 export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAccountId }) => {
+  const client = useClient();
   const [currentAccount, setCurrentAccount] = useState(initialAccountId);
+  const [contractId, setContractId] = useState("contextual.near");
   const [query, setQuery] = useState("");
-  const [data, setData] = useState<Record<string, any> | null>(null);
-  const [rawData, setRawData] = useState<Record<string, any> | null>(null);
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [rawData, setRawData] = useState<Record<string, unknown> | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [selectedValue, setSelectedValue] = useState<any>(null);
+  const [selectedValue, setSelectedValue] = useState<unknown>(null);
   const [viewMode, setViewMode] = useState<"tree" | "json">("tree");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<string[]>([]);
 
-  const explore = useCallback(async (pattern?: string) => {
-    const q = pattern || query || `${currentAccount}/*`;
-    setLoading(true);
-    setError(null);
-    setSelectedPath(null);
-    try {
-      const keysResult = await fetchKeys([q]);
-      if (Object.keys(keysResult).length === 0) {
-        setError("No data found");
-        setData(null);
-        setRawData(null);
-      } else {
-        setData(keysResult);
-        const valResult = await fetchValues([q]);
-        setRawData(valResult);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton, methods are stable
+  const explore = useCallback(
+    async (pattern?: string) => {
+      const q = pattern || query || `${currentAccount}/*`;
+      setLoading(true);
+      setError(null);
+      setSelectedPath(null);
+      try {
+        const keysResult = await client.socialKeys([q], { contractId });
+        if (Object.keys(keysResult).length === 0) {
+          setError("No data found");
+          setData(null);
+          setRawData(null);
+        } else {
+          setData(keysResult);
+          const valResult = await client.socialGet([q], { contractId });
+          setRawData(valResult);
+        }
+      } catch (_e) {
+        setError("Failed to fetch data");
       }
-    } catch (e) {
-      setError("Failed to fetch data");
-    }
-    setLoading(false);
-  }, [query, currentAccount]);
+      setLoading(false);
+    },
+    [query, currentAccount, contractId],
+  );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: explore intentionally excluded to avoid re-fetch on query/contractId changes
   useEffect(() => {
     setBreadcrumb([currentAccount]);
     explore(`${currentAccount}/*`);
+    // Only re-fetch when the account changes, not on query/contractId edits.
+    // explore is intentionally excluded — it closes over query/contractId
+    // which would cause spurious re-fetches on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentAccount]);
 
   const handleQuickPath = (path: string) => {
@@ -72,7 +84,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
     }
   };
 
-  const handleSelect = (path: string, value: any) => {
+  const handleSelect = (path: string, value: unknown) => {
     setSelectedPath(path);
     setSelectedValue(value);
   };
@@ -93,14 +105,32 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
     }
   };
 
-  const treeEntries: [string, any][] = data
+  const treeEntries: [string, unknown][] = data
     ? Object.entries(data).flatMap(([_acct, val]) =>
-        typeof val === "object" && val !== null ? Object.entries(val).map(([k, v]) => [k, v] as [string, any]) : []
+        typeof val === "object" && val !== null
+          ? Object.entries(val as Record<string, unknown>).map(
+              ([k, v]) => [k, v] as [string, unknown],
+            )
+          : [],
       )
     : [];
 
   return (
     <div className="animate-fade-up">
+      <div className="flex items-center gap-2 mb-3">
+        <label
+          htmlFor="contract-input"
+          className="text-xs text-muted-foreground font-mono shrink-0"
+        >
+          contract
+        </label>
+        <Input
+          id="contract-input"
+          value={contractId}
+          onChange={(e) => setContractId(e.target.value)}
+          className="font-mono bg-secondary/50 text-sm max-w-[240px]"
+        />
+      </div>
       <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
         <Input
           value={query}
@@ -108,11 +138,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
           placeholder={`${currentAccount}/**`}
           className="flex-1 bg-secondary/50 border-border font-mono text-sm placeholder:text-muted-foreground/50"
         />
-        <Button
-          type="submit"
-          disabled={loading}
-          className="glow-primary font-mono text-sm"
-        >
+        <Button type="submit" disabled={loading} className="glow-primary font-mono text-sm">
           {loading ? "..." : "explore_"}
         </Button>
       </form>
@@ -142,7 +168,9 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
           aria-label="Tree view"
           aria-pressed={viewMode === "tree"}
           className={`border border-border rounded-lg px-3 py-1.5 text-xs cursor-pointer font-mono transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-            viewMode === "tree" ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:text-foreground hover:border-border"
+            viewMode === "tree"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-transparent text-muted-foreground hover:text-foreground hover:border-border"
           }`}
         >
           tree
@@ -153,7 +181,9 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
           aria-label="JSON view"
           aria-pressed={viewMode === "json"}
           className={`border border-border rounded-lg px-3 py-1.5 text-xs cursor-pointer font-mono transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-            viewMode === "json" ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:text-foreground hover:border-border"
+            viewMode === "json"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-transparent text-muted-foreground hover:text-foreground hover:border-border"
           }`}
         >
           json
@@ -164,6 +194,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
         <div className="bg-card border border-border rounded-xl p-4 text-destructive text-sm mb-4 flex items-center justify-between">
           <span className="font-mono">{error}</span>
           <button
+            type="button"
             onClick={() => explore()}
             className="bg-secondary border border-border rounded-lg px-3 py-1 text-foreground text-xs cursor-pointer font-mono hover:border-primary/30 transition-colors"
           >
@@ -176,8 +207,12 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
         rawData && <JsonView data={rawData} />
       ) : (
         <div className="flex gap-4">
-          <div className={`${selectedPath ? "flex-1" : "w-full"} min-w-0 bg-card border border-border rounded-xl p-4 max-h-[600px] overflow-auto`}>
-            {loading && !data && <div className="text-muted-foreground font-mono text-sm">loading_</div>}
+          <div
+            className={`${selectedPath ? "flex-1" : "w-full"} min-w-0 bg-card border border-border rounded-xl p-4 max-h-[600px] overflow-auto`}
+          >
+            {loading && !data && (
+              <div className="text-muted-foreground font-mono text-sm">loading_</div>
+            )}
             {treeEntries.map(([key, val]) => (
               <TreeNode
                 key={key}
@@ -196,7 +231,12 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
           </div>
           {selectedPath && (
             <div className="w-[360px] shrink-0">
-              <ValueDetail accountId={currentAccount} path={selectedPath} value={selectedValue} />
+              <ValueDetail
+                accountId={currentAccount}
+                path={selectedPath}
+                value={selectedValue}
+                contractId={contractId}
+              />
             </div>
           )}
         </div>

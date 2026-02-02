@@ -17,8 +17,10 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ segments, onNavigate }) 
         ~
       </button>
       {segments.map((seg, i) => (
-        <React.Fragment key={i}>
-          <span className="text-muted-foreground/40" aria-hidden="true">/</span>
+        <React.Fragment key={seg}>
+          <span className="text-muted-foreground/40" aria-hidden="true">
+            /
+          </span>
           {i < segments.length - 1 ? (
             <button
               type="button"
@@ -29,7 +31,9 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ segments, onNavigate }) 
               {seg}
             </button>
           ) : (
-            <span className="text-foreground" aria-current="location">{seg}</span>
+            <span className="text-foreground" aria-current="location">
+              {seg}
+            </span>
           )}
         </React.Fragment>
       ))}

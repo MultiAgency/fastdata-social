@@ -1,5 +1,5 @@
-import { useWallet } from "../../providers/WalletProvider";
 import { Button } from "@/components/ui/button";
+import { useWallet } from "../../providers/WalletProvider";
 
 export function SignInNavbar() {
   const { connectWallet } = useWallet();

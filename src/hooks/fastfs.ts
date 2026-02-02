@@ -36,16 +36,13 @@ class BorshSchema {
   };
 
   FastfsData = {
-    enum: [
-      { struct: { simple: this.SimpleFastfs } },
-      { struct: { partial: this.PartialFastfs } },
-    ],
+    enum: [{ struct: { simple: this.SimpleFastfs } }, { struct: { partial: this.PartialFastfs } }],
   };
 }
 
 const FastfsSchema = new BorshSchema();
 
 export function encodeFfs(ffs: FastfsData): Uint8Array {
-  // Type assertion: @dao-xyz/borsh schema type doesn't match expected generic, but serialization works correctly at runtime
+  // biome-ignore lint/suspicious/noExplicitAny: borsh schema type incompatibility requires assertion
   return borshSerialize(FastfsSchema.FastfsData as any, ffs);
 }

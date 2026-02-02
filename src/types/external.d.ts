@@ -1,5 +1,5 @@
-declare module 'react-files' {
-  import { Component } from 'react';
+declare module "react-files" {
+  import { Component } from "react";
 
   export interface ReactFilesFile extends File {
     id: string;

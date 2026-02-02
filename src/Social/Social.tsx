@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
-import { useWallet } from "../providers/WalletProvider";
 import { useNear } from "@near-kit/react";
-import { Constants } from "../hooks/constants";
-import { fetchFollowing, fetchFollowers, checkApiHealth } from "../hooks/kvApi";
-import { isValidNearAccount } from "../utils/validation";
-import { TransactionAlert } from "./TransactionAlert";
-import { AccountList } from "./AccountList";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { buildFollowArgs, buildUnfollowArgs } from "../client";
+import { Constants } from "../hooks/constants";
+import { useClient } from "../hooks/useClient";
+import { useWallet } from "../providers/WalletProvider";
 import type { Transaction } from "../types";
+import { isValidNearAccount } from "../utils/validation";
+import { AccountList } from "./AccountList";
+import { TransactionAlert } from "./TransactionAlert";
 
 export function Social() {
   const { accountId } = useWallet();
   const near = useNear();
+  const client = useClient();
 
   const [following, setFollowing] = useState<string[]>([]);
   const [followers, setFollowers] = useState<string[]>([]);
@@ -25,27 +27,25 @@ export function Social() {
   const [loading, setLoading] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string>("");
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton, individual methods are stable
   const loadData = useCallback(async () => {
     if (!accountId) return;
     const FOLLOWING_KEY = `fastnear_following_${accountId}`;
 
     setLoading(true);
 
-    const isApiHealthy = await checkApiHealth();
+    const isApiHealthy = await client.health();
     setApiAvailable(isApiHealthy);
 
     if (isApiHealthy) {
-      const followingData = await fetchFollowing(accountId);
-      const followersData = await fetchFollowers(accountId);
+      const [followingRes, followersRes] = await Promise.all([
+        client.getFollowing(accountId),
+        client.getFollowers(accountId),
+      ]);
 
-      if (followingData !== null) {
-        setFollowing(followingData);
-        localStorage.setItem(FOLLOWING_KEY, JSON.stringify(followingData));
-      }
-
-      if (followersData !== null) {
-        setFollowers(followersData);
-      }
+      setFollowing(followingRes.accounts);
+      localStorage.setItem(FOLLOWING_KEY, JSON.stringify(followingRes.accounts));
+      setFollowers(followersRes.accounts);
     } else {
       const stored = localStorage.getItem(FOLLOWING_KEY);
       if (stored) {
@@ -53,7 +53,8 @@ export function Social() {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) setFollowing(parsed);
         } catch (err) {
-          console.warn('Failed to parse localStorage data, removing corrupted key:', err);
+          // biome-ignore lint/suspicious/noConsole: error logging
+          console.warn("Failed to parse localStorage data, removing corrupted key:", err);
           localStorage.removeItem(FOLLOWING_KEY);
         }
       }
@@ -67,25 +68,28 @@ export function Social() {
     loadData();
   }, [loadData]);
 
-  const validateAccount = useCallback((account: string): boolean => {
-    if (!account) {
-      setValidationError("Please enter an account ID");
-      return false;
-    }
+  const validateAccount = useCallback(
+    (account: string): boolean => {
+      if (!account) {
+        setValidationError("Please enter an account ID");
+        return false;
+      }
 
-    if (!isValidNearAccount(account)) {
-      setValidationError("Invalid NEAR account format");
-      return false;
-    }
+      if (!isValidNearAccount(account)) {
+        setValidationError("Invalid NEAR account format");
+        return false;
+      }
 
-    if (account === accountId) {
-      setValidationError("You cannot follow yourself");
-      return false;
-    }
+      if (account === accountId) {
+        setValidationError("You cannot follow yourself");
+        return false;
+      }
 
-    setValidationError("");
-    return true;
-  }, [accountId]);
+      setValidationError("");
+      return true;
+    },
+    [accountId],
+  );
 
   const handleFollow = useCallback(
     async (targetAccount: string) => {
@@ -96,25 +100,21 @@ export function Social() {
         return;
       }
 
+      if (!accountId) return;
       setTransacting(true);
       setValidationError("");
       const followingKey = `fastnear_following_${accountId}`;
 
       try {
-        const kvArgs = {
-          [`graph/follow/${targetAccount}`]: "",
-        };
+        const kvArgs = buildFollowArgs(accountId, targetAccount);
 
         if (!near) throw new Error("Wallet not connected");
 
-        const result = await near.call(
-          Constants.KV_CONTRACT_ID,
-          "__fastdata_kv",
-          kvArgs,
-          { gas: "10 Tgas" }
-        );
+        const result = await near.call(Constants.KV_CONTRACT_ID, "__fastdata_kv", kvArgs, {
+          gas: "10 Tgas",
+        });
 
-        const txId = result?.transaction?.hash as string | void;
+        const txId = result?.transaction?.hash as string | undefined;
 
         const newFollowing = [...following, targetAccount];
         setFollowing(newFollowing);
@@ -133,18 +133,15 @@ export function Social() {
           loadData();
         }, 3000);
       } catch (error: unknown) {
+        // biome-ignore lint/suspicious/noConsole: error logging
         console.error("Follow error:", error);
         setLastTx({
           type: "follow",
           account: targetAccount,
           txId: null,
-          status: "success",
+          status: "error",
           error: true,
         });
-
-        const newFollowing = [...following, targetAccount];
-        setFollowing(newFollowing);
-        localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
         setPendingAccount("");
 
@@ -155,29 +152,25 @@ export function Social() {
         setTransacting(false);
       }
     },
-    [following, accountId, near, validateAccount, loadData]
+    [following, accountId, near, validateAccount, loadData],
   );
 
   const handleUnfollow = useCallback(
     async (targetAccount: string) => {
+      if (!accountId) return;
       setTransacting(true);
       const followingKey = `fastnear_following_${accountId}`;
 
       try {
-        const kvArgs = {
-          [`graph/follow/${targetAccount}`]: null,
-        };
+        const kvArgs = buildUnfollowArgs(accountId, targetAccount);
 
         if (!near) throw new Error("Wallet not connected");
 
-        const result = await near.call(
-          Constants.KV_CONTRACT_ID,
-          "__fastdata_kv",
-          kvArgs,
-          { gas: "10 Tgas" }
-        );
+        const result = await near.call(Constants.KV_CONTRACT_ID, "__fastdata_kv", kvArgs, {
+          gas: "10 Tgas",
+        });
 
-        const txId = result?.transaction?.hash as string | void;
+        const txId = result?.transaction?.hash as string | undefined;
 
         const newFollowing = following.filter((id) => id !== targetAccount);
         setFollowing(newFollowing);
@@ -194,18 +187,15 @@ export function Social() {
           loadData();
         }, 3000);
       } catch (error: unknown) {
+        // biome-ignore lint/suspicious/noConsole: error logging
         console.error("Unfollow error:", error);
         setLastTx({
           type: "unfollow",
           account: targetAccount,
           txId: null,
-          status: "success",
+          status: "error",
           error: true,
         });
-
-        const newFollowing = following.filter((id) => id !== targetAccount);
-        setFollowing(newFollowing);
-        localStorage.setItem(followingKey, JSON.stringify(newFollowing));
 
         setTimeout(() => {
           loadData();
@@ -214,7 +204,7 @@ export function Social() {
         setTransacting(false);
       }
     },
-    [following, accountId, near, loadData]
+    [following, accountId, near, loadData],
   );
 
   return (
@@ -232,22 +222,28 @@ export function Social() {
             <span className="font-semibold text-accent">KV API unavailable</span>
             <br />
             <span className="text-sm text-muted-foreground">
-              Run <code className="font-mono bg-secondary px-1.5 py-0.5 rounded text-xs">kv-api-server</code> to see following/followers.
-              Write operations still work.
+              Run{" "}
+              <code className="font-mono bg-secondary px-1.5 py-0.5 rounded text-xs">
+                kv-api-server
+              </code>{" "}
+              to see following/followers. Write operations still work.
             </span>
           </AlertDescription>
         </Alert>
       )}
 
-      <TransactionAlert
-        transaction={lastTx}
-        onDismiss={() => setLastTx(null)}
-      />
+      <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
 
       <div className="mb-8 p-5 rounded-xl border border-border bg-card/50">
-        <label className="text-sm font-medium text-muted-foreground mb-3 block font-mono">follow_</label>
+        <label
+          htmlFor="follow-input"
+          className="text-sm font-medium text-muted-foreground mb-3 block font-mono"
+        >
+          follow_
+        </label>
         <div className="flex gap-2">
           <Input
+            id="follow-input"
             placeholder="alice.near"
             value={pendingAccount}
             onChange={(e) => {
@@ -284,10 +280,16 @@ export function Social() {
 
       <Tabs defaultValue="following">
         <TabsList className="bg-secondary/50 border border-border/50">
-          <TabsTrigger value="following" className="font-mono text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger
+            value="following"
+            className="font-mono text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
             following ({following.length})
           </TabsTrigger>
-          <TabsTrigger value="followers" className="font-mono text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger
+            value="followers"
+            className="font-mono text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
             followers ({followers.length})
           </TabsTrigger>
         </TabsList>
@@ -297,7 +299,6 @@ export function Social() {
             onUnfollow={handleUnfollow}
             disabled={transacting}
             type="following"
-            currentUser={accountId}
             loading={loading}
           />
         </TabsContent>
@@ -306,7 +307,6 @@ export function Social() {
             accounts={followers}
             disabled={transacting}
             type="followers"
-            currentUser={accountId}
             loading={loading}
           />
         </TabsContent>

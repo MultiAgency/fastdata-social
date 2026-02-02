@@ -1,5 +1,5 @@
-import { NearProvider } from "@near-kit/react";
 import { NearConnector } from "@hot-labs/near-connect";
+import { NearProvider } from "@near-kit/react";
 import { fromHotConnect, Near } from "near-kit";
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -74,7 +74,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
             // Security: Validate account ID format
             if (!isValidNearAccount(accountId)) {
-              console.error("Invalid account ID format:", accountId);
               if (mounted) {
                 setError(new Error("Invalid account ID format from wallet"));
               }
@@ -86,20 +85,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             setAccountId(accountId);
             setIsConnected(true);
           }
-        } catch (err) {
-          // No existing connection - this is fine, not an error
-          console.log("No existing wallet connection");
+        } catch {
+          // No existing connection — expected on fresh visit
         }
 
         // Listen for sign in events
         hotConnector.on("wallet:signIn", async (data) => {
           if (!mounted) return;
 
-          console.log("Connected via HOT!", data);
-
-          // Validate we have accounts
           if (!data.accounts || data.accounts.length === 0) {
-            console.error("No accounts returned from wallet");
             if (mounted) {
               setError(new Error("No accounts available in wallet"));
             }
@@ -108,16 +102,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
           const accountId = data.accounts[0].accountId;
 
-          // Security: Validate account ID format to prevent injection attacks
           if (!isValidNearAccount(accountId)) {
-            console.error("Invalid account ID format:", accountId);
             if (mounted) {
               setError(new Error("Invalid account ID format from wallet"));
             }
             return;
           }
 
-          const nearInstance = createNearInstance(hotConnector!, network);
+          if (!hotConnector) return;
+          const nearInstance = createNearInstance(hotConnector, network);
 
           setNear(nearInstance);
           setAccountId(accountId);
@@ -129,7 +122,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         hotConnector.on("wallet:signOut", () => {
           if (!mounted) return;
 
-          console.log("Disconnected from HOT");
           setNear(null);
           setAccountId(null);
           setIsConnected(false);
@@ -137,9 +129,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         });
       } catch (err) {
         if (mounted) {
-          const error = err instanceof Error ? err : new Error("Failed to initialize wallet");
-          console.error("Failed to initialize wallet:", error);
-          setError(error);
+          setError(err instanceof Error ? err : new Error("Failed to initialize wallet"));
         }
       } finally {
         if (mounted) {
@@ -162,36 +152,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const connectWallet = async () => {
-    if (!connector || isInitializing) {
-      console.warn("Wallet connector not ready");
-      return;
-    }
+    if (!connector || isInitializing) return;
 
     try {
       setError(null);
       await connector.connect();
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Failed to connect wallet");
-      console.error("Failed to connect wallet:", error);
       setError(error);
-      throw error; // Re-throw so UI can handle it
+      throw error;
     }
   };
 
   const disconnectWallet = async () => {
-    if (!connector) {
-      console.warn("Wallet connector not available");
-      return;
-    }
+    if (!connector) return;
 
     try {
       setError(null);
       await connector.disconnect();
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Failed to disconnect wallet");
-      console.error("Failed to disconnect wallet:", error);
       setError(error);
-      throw error; // Re-throw so UI can handle it
+      throw error;
     }
   };
 
@@ -217,9 +199,5 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-    <WalletContext.Provider value={walletValue}>
-      {children}
-    </WalletContext.Provider>
-  );
+  return <WalletContext.Provider value={walletValue}>{children}</WalletContext.Provider>;
 }

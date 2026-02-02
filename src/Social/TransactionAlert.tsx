@@ -1,8 +1,8 @@
-import { Constants } from "../hooks/constants";
-import { getTxExplorerUrl } from "../utils/validation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Constants } from "../hooks/constants";
 import type { Transaction } from "../types";
+import { getTxExplorerUrl } from "../utils/validation";
 
 interface TransactionAlertProps {
   transaction: Transaction | null;
@@ -23,13 +23,7 @@ export function TransactionAlert({ transaction, onDismiss }: TransactionAlertPro
     >
       <AlertDescription>
         {error ? (
-          <>
-            <span className="font-semibold text-accent">Transaction sent</span>
-            <br />
-            <span className="text-sm text-muted-foreground">
-              KV transactions may show as "failed" in wallet — your data is still being indexed.
-            </span>
-          </>
+          <span className="font-semibold text-destructive">Transaction failed</span>
         ) : type === "follow" ? (
           <>
             <span className="font-semibold text-primary">Followed {account}</span>

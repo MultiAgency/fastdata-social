@@ -1,28 +1,21 @@
-import { formatAccountId } from "../utils/validation";
 import { Button } from "@/components/ui/button";
+import { formatAccountId } from "../utils/validation";
 
 interface AccountListProps {
   accounts: string[];
   onUnfollow?: (account: string) => void;
   disabled: boolean;
   type: "following" | "followers";
-  currentUser: string | null;
   loading: boolean;
 }
 
-export function AccountList({
-  accounts,
-  onUnfollow,
-  disabled,
-  type,
-  loading,
-}: AccountListProps) {
+export function AccountList({ accounts, onUnfollow, disabled, type, loading }: AccountListProps) {
   if (loading) {
     return (
       <div className="flex flex-col items-center py-12">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" role="status">
+        <output className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent">
           <span className="sr-only">Loading...</span>
-        </div>
+        </output>
         <p className="mt-3 text-sm text-muted-foreground font-mono">loading {type}_</p>
       </div>
     );

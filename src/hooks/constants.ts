@@ -8,14 +8,10 @@ export const Constants: AppConstants = {
   CONTRACT_ID: "fastfs.near", // For FastFS file uploads
 
   // KV Configuration
-  KV_CONTRACT_ID: "social.near", // For KV social graph operations
-  KV_GAS: "10000000000000", // 10 Tgas for KV operations
-  MAX_KV_KEYS_PER_TX: 256, // Maximum keys per transaction
+  KV_CONTRACT_ID: "contextual.near", // For KV social graph operations
 
   // API Configuration
-  API_BASE_URL: import.meta.env.PROD
-    ? "https://fastdata.up.railway.app"
-    : "http://localhost:3001", // KV API server
+  API_BASE_URL: import.meta.env.PROD ? "https://fastdata.up.railway.app" : "http://localhost:3001", // KV API server
   EXPLORER_URL: "https://nearblocks.io/txns",
 
   // Network Configuration
@@ -38,4 +34,3 @@ export const Constants: AppConstants = {
 //   Args: Plain JSON object (no encoding needed!)
 //   Contract: Configurable (e.g., social.near)
 //   Use case: Key-value pairs (max 256 keys per transaction)
-//   Note: Transactions may show as "failed" but data is still indexed

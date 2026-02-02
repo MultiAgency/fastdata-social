@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ForceGraph3D, { type ForceGraphMethods } from "react-force-graph-3d";
-import { fetchConnections } from "../hooks/kvApi";
 import { Button } from "@/components/ui/button";
+import { useClient } from "../hooks/useClient";
 
 interface GraphViewProps {
   accountId: string;
@@ -32,12 +32,14 @@ const FOLLOWER_EDGE_COLOR = "#f59e0b";
 const BG_COLOR = "#0a0e1a";
 
 function GraphViewInner({ accountId }: GraphViewProps) {
+  const client = useClient();
   const fgRef = useRef<ForceGraphMethods>();
   const containerRef = useRef<HTMLDivElement>(null);
   const expandedRef = useRef(new Set<string>());
   const nodeIdsRef = useRef(new Set<string>());
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(false);
+  const [totalDiscovered, setTotalDiscovered] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
@@ -50,6 +52,7 @@ function GraphViewInner({ accountId }: GraphViewProps) {
     return () => observer.disconnect();
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton, methods are stable
   const expandNode = useCallback(
     async (nodeId: string) => {
       if (expandedRef.current.has(nodeId)) return;
@@ -57,8 +60,16 @@ function GraphViewInner({ accountId }: GraphViewProps) {
 
       setLoading(true);
       try {
-        const { following, followers } = await fetchConnections(nodeId);
+        const [followingRes, followersRes] = await Promise.all([
+          client.getFollowing(nodeId),
+          client.getFollowers(nodeId),
+        ]);
+        const following = followingRes.accounts;
+        const followers = followersRes.accounts;
         expandedRef.current.add(nodeId);
+
+        const allDiscovered = new Set([...nodeIdsRef.current, ...following, ...followers]);
+        setTotalDiscovered(allDiscovered.size);
 
         setGraphData((prev) => {
           const newNodes = [...prev.nodes];
@@ -94,12 +105,13 @@ function GraphViewInner({ accountId }: GraphViewProps) {
 
         setTimeout(() => fgRef.current?.zoomToFit(400), 300);
       } catch (err) {
+        // biome-ignore lint/suspicious/noConsole: error logging
         console.error("Failed to expand node:", err);
       } finally {
         setLoading(false);
       }
     },
-    [accountId]
+    [accountId],
   );
 
   useEffect(() => {
@@ -110,7 +122,7 @@ function GraphViewInner({ accountId }: GraphViewProps) {
     (node: object) => {
       expandNode((node as GraphNode).id);
     },
-    [expandNode]
+    [expandNode],
   );
 
   return (
@@ -134,10 +146,18 @@ function GraphViewInner({ accountId }: GraphViewProps) {
       />
 
       <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border text-xs font-mono z-10">
-        <div className="text-muted-foreground">nodes: <span className="text-foreground">{graphData.nodes.length}</span></div>
-        <div className="text-muted-foreground">expanded: <span className="text-foreground">{expandedRef.current.size}</span></div>
+        <div className="text-muted-foreground">
+          nodes: <span className="text-foreground">{graphData.nodes.length}</span>
+        </div>
+        <div className="text-muted-foreground">
+          expanded: <span className="text-foreground">{expandedRef.current.size}</span>
+        </div>
         {loading && <div className="text-accent mt-1">loading_</div>}
-        {graphData.nodes.length >= NODE_CAP && <div className="text-destructive mt-1">cap reached</div>}
+        {graphData.nodes.length >= NODE_CAP && totalDiscovered > NODE_CAP && (
+          <div className="text-muted-foreground mt-1">
+            showing {NODE_CAP} of {totalDiscovered} connections
+          </div>
+        )}
       </div>
 
       <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm p-2 rounded-lg border border-border text-xs font-mono text-muted-foreground z-10">

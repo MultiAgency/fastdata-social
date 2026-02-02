@@ -1,7 +1,7 @@
-import React from "react";
+import type React from "react";
 
 interface JsonViewProps {
-  data: any;
+  data: unknown;
 }
 
 export const JsonView: React.FC<JsonViewProps> = ({ data }) => {

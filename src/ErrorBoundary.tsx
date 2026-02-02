@@ -1,5 +1,5 @@
-import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { Component } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // biome-ignore lint/suspicious/noConsole: error boundary must log errors
     console.error("ErrorBoundary caught:", error, info.componentStack);
   }
 
@@ -33,20 +34,15 @@ export class ErrorBoundary extends Component<Props, State> {
           <AlertTitle>Something went wrong</AlertTitle>
           <AlertDescription>
             <p className="mb-3">The application encountered an unexpected error.</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.reload()}
-            >
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
               Reload page
             </Button>
             {import.meta.env.DEV && (
               <div className="mt-3">
                 <button
+                  type="button"
                   className="text-sm underline"
-                  onClick={() =>
-                    this.setState((s) => ({ showDetails: !s.showDetails }))
-                  }
+                  onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))}
                 >
                   {this.state.showDetails ? "Hide" : "Show"} error details
                 </button>

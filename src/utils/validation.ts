@@ -22,7 +22,7 @@ export function isValidNearAccount(accountId: string): boolean {
   if (!accountId) return false;
 
   // Reject system account (reserved by protocol)
-  if (accountId === 'system') {
+  if (accountId === "system") {
     return false;
   }
 

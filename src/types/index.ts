@@ -1,12 +1,3 @@
-// NEAR Wallet Types
-export interface WalletCallFunctionArgs {
-  contractId: string;
-  method: string;
-  args: Uint8Array | Record<string, unknown>;
-  gas: string;
-  deposit?: string;
-}
-
 // FastFS Types
 export interface FastfsFileContent {
   mimeType: string;
@@ -27,9 +18,7 @@ export interface PartialFastfs {
   nonce: number;
 }
 
-export type FastfsData =
-  | { simple: SimpleFastfs }
-  | { partial: PartialFastfs };
+export type FastfsData = { simple: SimpleFastfs } | { partial: PartialFastfs };
 
 export type FileStatus = "pending" | "uploading" | "success" | "error";
 
@@ -40,25 +29,17 @@ export interface FileToUpload {
   path: string;
   numParts: number;
   ffs: FastfsData[];
-  txIds?: (string | void)[];
+  txIds?: (string | undefined)[];
   uploadedParts?: number;
   url?: string;
 }
 
-// KV API Types
-export interface KVEntry {
-  predecessor_id: string;
-  key: string;
-  value: string | null;
-}
-
-export interface KVQueryResponse {
-  entries: KVEntry[];
-}
+// Re-export KV types from client SDK
+export type { KvEntry as KVEntry, KvQueryResponse as KVQueryResponse } from "../client/types";
 
 // Social Graph Types
 export type TransactionType = "follow" | "unfollow";
-export type TransactionStatus = "success" | "processing";
+export type TransactionStatus = "success" | "processing" | "error";
 
 export interface Transaction {
   type: TransactionType;
@@ -78,8 +59,6 @@ export interface NetworkConfig {
 export interface AppConstants {
   CONTRACT_ID: string;
   KV_CONTRACT_ID: string;
-  KV_GAS: string;
-  MAX_KV_KEYS_PER_TX: number;
   API_BASE_URL: string;
   EXPLORER_URL: string;
   NETWORK: NetworkConfig;

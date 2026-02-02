@@ -1,13 +1,13 @@
-import Files from "react-files";
+import { useNear } from "@near-kit/react";
 import { useCallback, useState } from "react";
 import type { ReactFilesFile } from "react-files";
-import { encodeFfs } from "../hooks/fastfs";
-import { Constants } from "../hooks/constants";
-import { useWallet } from "../providers/WalletProvider";
-import { useNear } from "@near-kit/react";
+import Files from "react-files";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { FileToUpload, FileStatus, FastfsData } from "../types";
+import { Constants } from "../hooks/constants";
+import { encodeFfs } from "../hooks/fastfs";
+import { useWallet } from "../providers/WalletProvider";
+import type { FastfsData, FileStatus, FileToUpload } from "../types";
 
 const Status: Record<string, FileStatus> = {
   Pending: "pending",
@@ -21,7 +21,7 @@ const MAX_RELATIVE_PATH_LENGTH = 1024;
 
 async function transformFiles(
   relativePath: string,
-  files: ReactFilesFile[]
+  files: ReactFilesFile[],
 ): Promise<FileToUpload[]> {
   if (relativePath.includes("..")) {
     throw new Error("Invalid path: '..' segments not allowed");
@@ -34,7 +34,9 @@ async function transformFiles(
     const encoded = new Uint8Array(data);
     const path = relativePath + file.name;
     if (path.length > MAX_RELATIVE_PATH_LENGTH) {
-      throw new Error(`Path too long (${path.length} chars, max ${MAX_RELATIVE_PATH_LENGTH}): ${path}`);
+      throw new Error(
+        `Path too long (${path.length} chars, max ${MAX_RELATIVE_PATH_LENGTH}): ${path}`,
+      );
     }
     if (encoded.length > ChunkSize) {
       const parts: FastfsData[] = [];
@@ -45,10 +47,7 @@ async function transformFiles(
             relativePath: path,
             offset,
             fullSize: encoded.length,
-            contentChunk: encoded.slice(
-              offset,
-              Math.min(offset + ChunkSize, encoded.length)
-            ),
+            contentChunk: encoded.slice(offset, Math.min(offset + ChunkSize, encoded.length)),
             mimeType,
             nonce,
           },
@@ -103,14 +102,19 @@ export function Upload() {
     async (files: FileToUpload[]) => {
       if (!near) throw new Error("Wallet not connected");
 
-      const initial = files.map((f) => ({ ...f, status: Status.Uploading, txIds: [] as (string | void)[], uploadedParts: 0 }));
+      const initial = files.map((f) => ({
+        ...f,
+        status: Status.Uploading,
+        txIds: [] as (string | undefined)[],
+        uploadedParts: 0,
+      }));
       setUploadingFiles(initial);
 
       await Promise.all(
         initial.map(async (file, fileIndex) => {
           const update = (updater: (file: FileToUpload) => Partial<FileToUpload>) => {
             setUploadingFiles((prev) =>
-              prev.map((f, i) => (i === fileIndex ? { ...f, ...updater(f) } : f))
+              prev.map((f, i) => (i === fileIndex ? { ...f, ...updater(f) } : f)),
             );
           };
 
@@ -118,14 +122,11 @@ export function Upload() {
             const ffs64 = encodeFfs(part);
 
             try {
-              const result = await near.call(
-                Constants.CONTRACT_ID,
-                "__fastdata_fastfs",
-                ffs64,
-                { gas: "1 Tgas" }
-              );
+              const result = await near.call(Constants.CONTRACT_ID, "__fastdata_fastfs", ffs64, {
+                gas: "1 Tgas",
+              });
 
-              const txId = result?.transaction?.hash as string | void;
+              const txId = result?.transaction?.hash as string | undefined;
 
               update((f) => {
                 const newUploaded = (f.uploadedParts ?? 0) + 1;
@@ -134,11 +135,15 @@ export function Upload() {
                   uploadedParts: newUploaded,
                   txIds: [...(f.txIds ?? []), txId],
                   ...(done
-                    ? { status: Status.Success, url: `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${f.path}` }
+                    ? {
+                        status: Status.Success,
+                        url: `https://${accountId}.fastfs.io/${Constants.CONTRACT_ID}/${f.path}`,
+                      }
                     : {}),
                 };
               });
             } catch (error) {
+              // biome-ignore lint/suspicious/noConsole: upload errors need logging
               console.error("Upload error:", error);
               update((f) => ({
                 status: Status.Error,
@@ -147,17 +152,19 @@ export function Upload() {
               break;
             }
           }
-        })
+        }),
       );
     },
-    [accountId, near]
+    [accountId, near],
   );
 
   return (
     <div className="animate-fade-up">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight mb-1">Upload to FastFS</h1>
-        <p className="text-sm text-muted-foreground font-mono">decentralized file storage on NEAR</p>
+        <p className="text-sm text-muted-foreground font-mono">
+          decentralized file storage on NEAR
+        </p>
       </div>
 
       <div className="mb-8">
@@ -176,7 +183,9 @@ export function Upload() {
         >
           <div className="flex flex-col items-center justify-center w-full h-full p-4">
             <div className="w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center mb-4 group-hover:border-primary/30 transition-colors">
-              <span className="text-2xl leading-none text-muted-foreground group-hover:text-primary transition-colors">↑</span>
+              <span className="text-2xl leading-none text-muted-foreground group-hover:text-primary transition-colors">
+                ↑
+              </span>
             </div>
             <p className="text-base font-medium text-foreground/80">
               Drop files here or click to browse
@@ -187,8 +196,14 @@ export function Upload() {
       </div>
 
       <div className={`mb-6 ${files.length === 0 ? "hidden" : ""}`}>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block font-mono">path_</label>
+        <label
+          htmlFor="upload-path"
+          className="text-sm font-medium text-muted-foreground mb-2 block font-mono"
+        >
+          path_
+        </label>
         <Input
+          id="upload-path"
           disabled={uploading}
           onChange={(e) => setRelativePath(e.target.value)}
           placeholder={"/"}
@@ -233,19 +248,20 @@ export function Upload() {
         <h4 className="text-sm font-medium text-muted-foreground mb-3 font-mono">queued_</h4>
         <div className="rounded-xl border border-border bg-card/50 divide-y divide-border">
           {files.map((file, index) => (
-            <div key={`f-${index}`} className="flex items-center gap-3 px-4 py-3">
+            <div key={`f-${file.name}`} className="flex items-center gap-3 px-4 py-3">
               <button
+                type="button"
                 className="text-xs text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-2 focus-visible:outline-ring rounded"
                 aria-label={`Remove ${file.name}`}
                 onClick={() => {
-                  setFiles((prevFiles) =>
-                    prevFiles.filter((_, i) => i !== index)
-                  );
+                  setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
                 }}
               >
                 ×
               </button>
-              <code className="text-sm font-mono text-foreground/90">{relativePath + file.name}</code>
+              <code className="text-sm font-mono text-foreground/90">
+                {relativePath + file.name}
+              </code>
               <span className="text-xs text-muted-foreground font-mono ml-auto">{file.type}</span>
               <span className="text-xs text-muted-foreground font-mono">{file.size}b</span>
             </div>
@@ -256,21 +272,28 @@ export function Upload() {
       <div className={`mb-8 ${uploadingFiles.length === 0 ? "hidden" : ""}`}>
         <h4 className="text-sm font-medium text-muted-foreground mb-3 font-mono">results_</h4>
         <div className="rounded-xl border border-border bg-card/50 divide-y divide-border">
-          {uploadingFiles.map((file, index) => (
-            <div key={`up-${index}`} className="px-4 py-3">
+          {uploadingFiles.map((file) => (
+            <div key={`up-${file.path}`} className="px-4 py-3">
               {file.status === Status.Success ? (
-                <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono text-sm break-all">
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-mono text-sm break-all"
+                >
                   {file.url}
                 </a>
               ) : file.status === Status.Error ? (
                 <div className="flex items-center gap-2">
                   <code className="text-sm font-mono">{file.path}</code>
-                  <span className="text-xs text-destructive font-mono ml-auto">error</span>
+                  <span className="text-xs text-destructive font-mono ml-auto">error_</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <code className="text-sm font-mono text-foreground/90">{file.path}</code>
-                  <span className="text-xs text-muted-foreground font-mono ml-auto">{file.type}</span>
+                  <span className="text-xs text-muted-foreground font-mono ml-auto">
+                    {file.type}
+                  </span>
                   {file.status === Status.Uploading && (
                     <span className="flex items-center gap-2 text-xs text-primary font-mono">
                       <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />

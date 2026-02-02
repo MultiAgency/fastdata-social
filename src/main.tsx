@@ -1,8 +1,8 @@
-import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
+import { createRoot } from "react-dom/client";
 import "./index.css";
-import { WalletProvider } from "./providers/WalletProvider";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { WalletProvider } from "./providers/WalletProvider";
 import { router } from "./router";
 
 const rootElement = document.getElementById("root");
@@ -13,5 +13,5 @@ createRoot(rootElement).render(
     <WalletProvider>
       <RouterProvider router={router} />
     </WalletProvider>
-  </ErrorBoundary>
+  </ErrorBoundary>,
 );
