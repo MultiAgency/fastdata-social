@@ -100,7 +100,7 @@ export function Upload() {
 
   const startUpload = useCallback(
     async (files: FileToUpload[]) => {
-      if (!near) throw new Error("Wallet not connected");
+      if (!near || !accountId) throw new Error("Wallet not connected");
 
       const initial = files.map((f) => ({
         ...f,
@@ -119,12 +119,14 @@ export function Upload() {
           };
 
           for (const part of file.ffs) {
-            const ffs64 = encodeFfs(part);
+            const ffsBytes = encodeFfs(part);
 
             try {
-              const result = await near.call(Constants.CONTRACT_ID, "__fastdata_fastfs", ffs64, {
-                gas: "1 Tgas",
-              });
+              const result = await near
+                .transaction(accountId)
+                .functionCall(Constants.CONTRACT_ID, "__fastdata_fastfs", ffsBytes, { gas: "1" })
+                .send()
+                .catch(() => undefined);
 
               const txId = result?.transaction?.hash as string | undefined;
 

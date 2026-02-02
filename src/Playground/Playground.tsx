@@ -86,11 +86,21 @@ function Spinner() {
   );
 }
 
-function CardHeader({ title, endpoints }: { title: string; endpoints: string }) {
+function CardHeader({
+  title,
+  endpoints,
+}: {
+  title: string;
+  endpoints: string;
+}) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <span className="text-sm font-medium text-muted-foreground font-mono">{title}</span>
-      <span className="hidden sm:inline text-xs text-muted-foreground font-mono">{endpoints}</span>
+      <span className="text-sm font-medium text-muted-foreground font-mono">
+        {title}
+      </span>
+      <span className="hidden sm:inline text-xs text-muted-foreground font-mono">
+        {endpoints}
+      </span>
     </div>
   );
 }
@@ -130,7 +140,9 @@ export function Playground({ accountId }: PlaygroundProps) {
   const [followTarget, setFollowTarget] = useState("");
 
   // Section 5: Custom KV
-  const [kvPairs, setKvPairs] = useState<KvPair[]>([{ id: "1", key: "", value: "" }]);
+  const [kvPairs, setKvPairs] = useState<KvPair[]>([
+    { id: "1", key: "", value: "" },
+  ]);
 
   // -------------------------------------------------------------------------
   // commitKv
@@ -147,7 +159,9 @@ export function Playground({ accountId }: PlaygroundProps) {
       let wasError = false;
 
       try {
-        const result = await near.call(targetContract, "__fastdata_kv", args, { gas: "10 Tgas" });
+        const result = await near.call(targetContract, "__fastdata_kv", args, {
+          gas: "10 Tgas",
+        });
         txId = (result?.transaction?.hash as string) || null;
       } catch (err) {
         // biome-ignore lint/suspicious/noConsole: error logging in catch handler
@@ -262,7 +276,10 @@ export function Playground({ accountId }: PlaygroundProps) {
   // -------------------------------------------------------------------------
 
   function addKvPair() {
-    setKvPairs((prev) => [...prev, { id: Date.now().toString(), key: "", value: "" }]);
+    setKvPairs((prev) => [
+      ...prev,
+      { id: Date.now().toString(), key: "", value: "" },
+    ]);
   }
 
   function removeKvPair(id: string) {
@@ -270,7 +287,9 @@ export function Playground({ accountId }: PlaygroundProps) {
   }
 
   function updateKvPair(id: string, field: "key" | "value", val: string) {
-    setKvPairs((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: val } : p)));
+    setKvPairs((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: val } : p)),
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -282,9 +301,11 @@ export function Playground({ accountId }: PlaygroundProps) {
   return (
     <div className="animate-fade-up">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">Playground</h1>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">
+          Playground
+        </h1>
         <p className="text-sm text-muted-foreground font-mono">
-          commit test data via FastData KV protocol
+          store key-value data on NEAR using FastData
         </p>
       </div>
 
@@ -334,7 +355,9 @@ export function Playground({ accountId }: PlaygroundProps) {
                   : "border-l-2 border-l-primary border-border bg-primary/5"
               }`}
             >
-              <span className="text-muted-foreground">{entry.timestamp.toLocaleTimeString()}</span>
+              <span className="text-muted-foreground">
+                {entry.timestamp.toLocaleTimeString()}
+              </span>
               <span>{entry.label}</span>
               <Badge variant="outline" className="font-mono text-[10px]">
                 {entry.keyCount} key{entry.keyCount !== 1 ? "s" : ""}
@@ -360,7 +383,10 @@ export function Playground({ accountId }: PlaygroundProps) {
 
       {/* Section 1: Profile */}
       <div className="mb-4 p-5 rounded-xl border border-border bg-card/50">
-        <CardHeader title="profile" endpoints="/social/profile, /social/get, /kv/query" />
+        <CardHeader
+          title="profile"
+          endpoints="/social/profile, /social/get, /kv/query"
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label
@@ -496,7 +522,10 @@ export function Playground({ accountId }: PlaygroundProps) {
 
       {/* Section 2: Create Post */}
       <div className="mb-4 p-5 rounded-xl border border-border bg-card/50">
-        <CardHeader title="post" endpoints="/social/feed/account, /social/index" />
+        <CardHeader
+          title="post"
+          endpoints="/social/feed/account, /social/index"
+        />
         <label
           htmlFor="pg-post-content"
           className="text-xs text-muted-foreground mb-1 block font-mono"
@@ -639,7 +668,10 @@ export function Playground({ accountId }: PlaygroundProps) {
 
       {/* Section 4: Follow / Unfollow */}
       <div className="mb-4 p-5 rounded-xl border border-border bg-card/50">
-        <CardHeader title="follow" endpoints="/social/followers, /social/following, /kv/reverse" />
+        <CardHeader
+          title="follow"
+          endpoints="/social/followers, /social/following, /kv/reverse"
+        />
         <label
           htmlFor="pg-follow-target"
           className="text-xs text-muted-foreground mb-1 block font-mono"
@@ -688,7 +720,10 @@ export function Playground({ accountId }: PlaygroundProps) {
 
       {/* Section 5: Custom KV */}
       <div className="mb-4 p-5 rounded-xl border border-border bg-card/50">
-        <CardHeader title="custom kv" endpoints="/kv/get, /kv/query, /kv/history, /kv/batch" />
+        <CardHeader
+          title="custom kv"
+          endpoints="/kv/get, /kv/query, /kv/history, /kv/batch"
+        />
         <div className="space-y-2">
           {kvPairs.map((pair) => (
             <div key={pair.id} className="flex items-center gap-2">
@@ -751,7 +786,9 @@ export function Playground({ accountId }: PlaygroundProps) {
           <table className="w-full font-mono text-sm">
             <thead>
               <tr className="border-b border-border text-left">
-                <th className="pb-2 pr-4 text-xs text-muted-foreground font-medium">section</th>
+                <th className="pb-2 pr-4 text-xs text-muted-foreground font-medium">
+                  section
+                </th>
                 <th className="pb-2 text-xs text-muted-foreground font-medium">
                   endpoints populated
                 </th>
@@ -766,7 +803,9 @@ export function Playground({ accountId }: PlaygroundProps) {
               </tr>
               <tr className="border-b border-border/50">
                 <td className="py-2 pr-4">post</td>
-                <td className="py-2 text-muted-foreground">/social/feed/account, /social/index</td>
+                <td className="py-2 text-muted-foreground">
+                  /social/feed/account, /social/index
+                </td>
               </tr>
               <tr className="border-b border-border/50">
                 <td className="py-2 pr-4">action</td>
