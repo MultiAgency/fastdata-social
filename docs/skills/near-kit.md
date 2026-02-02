@@ -86,7 +86,7 @@ KV writes use the FastData SDK to build args, then `near.call()` to submit:
 import { useNear } from "@near-kit/react";
 
 function MyComponent({ accountId }: { accountId: string }) {
-  const { near } = useNear();
+  const near = useNear();
   const client = useClient();
 
   const handleFollow = async () => {

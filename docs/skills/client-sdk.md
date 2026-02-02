@@ -202,7 +202,7 @@ The base class also exposes `buildCommit(kvPairs, contractId?)` directly for cus
 ### Step 2: Submit
 
 ```tsx
-const { near } = useNear();
+const near = useNear();
 const tx = client.buildFollow(accountId, "target.near");
 await near.call(tx.contractId, tx.methodName, tx.args, tx.gas);
 ```

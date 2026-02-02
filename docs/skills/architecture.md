@@ -31,7 +31,7 @@ src/main.tsx
   └── ErrorBoundary          (src/ErrorBoundary.tsx — catches render errors, shows reload UI)
        └── WalletProvider     (src/providers/WalletProvider.tsx — HOT wallet + NearProvider)
             └── RouterProvider (TanStack Router — src/router.tsx)
-                 └── App      (src/App.tsx — tab bar, layout)
+                 └── App      (src/App.tsx — layout wrapper)
                       └── Outlet (active route component)
 ```
 
@@ -45,6 +45,8 @@ src/main.tsx
 | `/social` | `Social` | No | Follow/unfollow management |
 | `/graph` | `GraphView` | Yes | 3D social graph visualization |
 | `/explorer` | `ExplorerView` | Yes | On-chain KV data browser |
+| `/profile` | `ProfilePage` | No | Own profile editor (signed in) or sign-in prompt |
+| `/profile/$accountId` | `ProfilePage` | No | Read-only profile view for any account |
 
 Routes requiring wallet use `RequireWallet` — a render-prop component that shows a spinner until connected, then passes `accountId`.
 
@@ -91,7 +93,7 @@ Every KV entry has: `predecessor_id` (who wrote it), `current_account_id` (which
 src/
   main.tsx               Entry point (createRoot)
   ErrorBoundary.tsx      Catches render errors with reload UI
-  App.tsx                Layout: header + tab bar + Outlet
+  App.tsx                Layout wrapper: Header + Outlet
   router.tsx             TanStack Router route definitions
 
   client/                SDK
@@ -113,7 +115,7 @@ src/
     WalletProvider.tsx   HOT wallet connector → Near instance → NearProvider + useWallet()
 
   Header/
-    Header.tsx           App header with logo
+    Header.tsx           App header with logo + nav links (desktop inline, mobile hamburger)
     SignIn/              AccountNavbar, SignInNavbar, SignedInNavbar
 
   Social/
@@ -127,6 +129,11 @@ src/
       ValueDetail.tsx    Side panel: KV metadata (block height, tx hash, writer)
       Breadcrumb.tsx     Path navigation
       JsonView.tsx       Raw JSON display
+
+  Profile/
+    ProfilePage.tsx      Route wrapper: editor (own) or view (other) or sign-in prompt
+    ProfileEditor.tsx    Edit form with live preview, KV commit, tx feedback
+    ProfileView.tsx      Read-only profile card with avatar, bio, tags, linktree
 
   Upload/
     Upload.tsx           FastFS drag-and-drop upload with chunking

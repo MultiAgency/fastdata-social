@@ -17,11 +17,11 @@ For each skill file listed below:
 | Skill doc | Source files to check |
 |---|---|
 | `client-sdk.md` | `src/client/FastData.ts`, `src/client/Social.ts`, `src/client/builders.ts`, `src/client/utils.ts`, `src/client/types.ts`, `src/client/constants.ts`, `src/client/index.ts`, `src/hooks/useClient.ts` |
-| `architecture.md` | `src/router.tsx`, `src/App.tsx`, `src/main.tsx`, `src/hooks/constants.ts`, `src/hooks/useClient.ts`, `src/providers/WalletProvider.tsx`, directory listing of `src/` |
+| `architecture.md` | `src/router.tsx`, `src/App.tsx`, `src/main.tsx`, `src/hooks/constants.ts`, `src/hooks/useClient.ts`, `src/providers/WalletProvider.tsx`, `src/Header/Header.tsx`, `src/Profile/ProfilePage.tsx`, `src/Profile/ProfileView.tsx`, `src/Profile/ProfileEditor.tsx`, directory listing of `src/` |
 | `quality.md` | `src/client/__tests__/`, `src/client/builders.ts`, `biome.json`, `package.json` (scripts) |
-| `add-feature.md` | `src/client/builders.ts`, `src/client/Social.ts`, `src/client/types.ts`, `src/router.tsx`, `src/App.tsx` |
+| `add-feature.md` | `src/client/builders.ts`, `src/client/Social.ts`, `src/client/types.ts`, `src/router.tsx`, `src/Header/Header.tsx` |
 | `operations.md` | `src/client/FastData.ts`, `src/hooks/useClient.ts`, `src/hooks/constants.ts`, `package.json` (scripts) |
-| `design-system.md` | `src/index.css` (Tailwind v4 inline theme), `src/components/ui/`, `package.json` (dependencies) |
+| `design-system.md` | `src/index.css` (Tailwind v4 inline theme), `src/components/ui/`, `src/Header/Header.tsx`, `package.json` (dependencies) |
 | `fastdata.md` | `src/client/FastData.ts`, `src/client/constants.ts`, `src/hooks/fastfs.ts` |
 | `near-kit.md` | `src/providers/WalletProvider.tsx`, `package.json` (near-kit deps) |
 | `update-skills.md` | All entries in this mapping table — verify listed source files still exist, check for new skill docs not in the table, check for new source directories not mapped to any skill |
@@ -32,7 +32,9 @@ For each skill file listed below:
 - Exports added or removed from `src/client/index.ts`
 - Builder `signerId` usage (which builders use it vs prefix with `_`)
 - `useClient()` implementation pattern (singleton vs context)
-- New files added to `src/client/` not reflected in architecture
+- `useNear()` return shape (returns `near` directly, not `{ near }`)
+- Navigation location (nav links in `src/Header/Header.tsx`, not App.tsx)
+- New files added to `src/client/` or new page directories not reflected in architecture
 - package.json scripts added or removed
 - Test file coverage descriptions
 

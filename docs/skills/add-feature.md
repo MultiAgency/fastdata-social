@@ -115,7 +115,7 @@ import { isValidNearAccount } from "../utils/validation";
 
 export function MyFeature({ accountId }: { accountId: string }) {
   const client = useClient();
-  const { near } = useNear();
+  const near = useNear();
 
   // Separate states for reads vs writes
   const [loading, setLoading] = useState(false);
@@ -295,19 +295,19 @@ const routeTree = rootRoute.addChildren([
 ]);
 ```
 
-### 3. Add tab in `src/App.tsx`
+### 3. Add nav link in `src/Header/Header.tsx`
 
 ```tsx
-const tabs = [
-  // ...existing tabs,
-  { to: "/mypage" as const, label: "MyPage", icon: "◆" },
+const navLinks = [
+  // ...existing links,
+  { to: "/mypage" as const, label: "MyPage" },
 ];
 ```
 
-Use `as const` for type safety. Active state is detected via `useRouterState` comparing `pathname === tab.to`.
+Navigation lives in the Header component. Links render inline on desktop, in a hamburger dropdown on mobile. Active state is detected via `useRouterState` comparing `pathname === link.to`.
 
 ### 4. Hooks available in components
 
 - `useClient()` — returns `Social` SDK instance (reads + write builders)
-- `useNear()` — from `@near-kit/react`, returns `{ near }` for `near.call()`
+- `useNear()` — from `@near-kit/react`, returns the `near` instance directly for `near.call()` or `near.transaction().send()`
 - `useWallet()` — returns `{ accountId, isConnected, isInitializing, connectWallet, disconnectWallet, error, clearError }`

@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import App from "./App";
 import { Playground } from "./Playground/Playground";
+import { ProfilePage } from "./Profile/ProfilePage";
 import { ExplorerView } from "./Social/Explorer/ExplorerView";
 import { GraphView } from "./Social/GraphView";
 import { Social } from "./Social/Social";
@@ -59,6 +60,18 @@ function RequireWallet({ children }: { children: (accountId: string) => React.Re
   return <>{children(accountId)}</>;
 }
 
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile",
+  component: ProfilePage,
+});
+
+const profileAccountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile/$accountId",
+  component: ProfilePage,
+});
+
 const playgroundRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/playground",
@@ -72,6 +85,8 @@ const routeTree = rootRoute.addChildren([
   graphRoute,
   explorerRoute,
   playgroundRoute,
+  profileRoute,
+  profileAccountRoute,
 ]);
 
 export const router = createRouter({

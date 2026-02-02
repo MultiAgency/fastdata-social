@@ -68,9 +68,9 @@ This is a deliberate aesthetic. Use it for any loading/status indicators.
 </div>
 ```
 
-## Tab Bar
+## Navigation
 
-Active tab uses `bg-primary text-primary-foreground shadow-lg glow-primary`. Inactive uses `text-muted-foreground hover:text-foreground hover:bg-secondary`. See `src/App.tsx`.
+Nav links live in `src/Header/Header.tsx`. Desktop: inline links after logo. Mobile: hamburger dropdown. Active link uses `text-primary bg-primary/10`. Inactive uses `text-muted-foreground hover:text-foreground hover:bg-secondary/50`. Links use trailing underscore format: `playground_`, `upload_`, etc.
 
 ## Grid Layouts
 
