@@ -24,3 +24,7 @@ package-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright
+playwright-tests/playwright-report
+playwright-tests/test-results
