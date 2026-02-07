@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Profile } from "../client/types";
+import { FollowButton } from "../components/FollowButton";
+import { TagBadge } from "../components/TagBadge";
 import { useClient } from "../hooks/useClient";
 import { useWallet } from "../providers/WalletProvider";
 
@@ -17,20 +18,42 @@ export function ProfileView({ accountId }: ProfileViewProps) {
   const [loading, setLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
   const [empty, setEmpty] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setEmpty(false);
-    client
-      .getProfile(accountId)
-      .then((p) => {
+
+    // Fetch profile independently from social counts so a follower/following
+    // API failure doesn't blank the entire profile.
+    const profileP = client.getProfile(accountId);
+    const followersP = client
+      .getFollowers(accountId, { limit: 1 })
+      .catch(() => ({ accounts: [], count: 0 }));
+    const followingP = client
+      .getFollowing(accountId, { limit: 1 })
+      .catch(() => ({ accounts: [], count: 0 }));
+    const isFollowingP = signedInAccount
+      ? client
+          .getFollowing(signedInAccount)
+          .then((res) => res.accounts.includes(accountId))
+          .catch(() => false)
+      : Promise.resolve(false);
+
+    Promise.all([profileP, followersP, followingP, isFollowingP])
+      .then(([p, followers, following, follows]) => {
         if (cancelled) return;
         if (!p || Object.keys(p).length === 0) {
           setEmpty(true);
         } else {
           setProfile(p);
         }
+        setFollowerCount(followers.count);
+        setFollowingCount(following.count);
+        setIsFollowing(follows as boolean);
         setLoading(false);
       })
       .catch(() => {
@@ -42,7 +65,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [accountId, client]);
+  }, [accountId, client, signedInAccount]);
 
   if (loading) {
     return (
@@ -62,12 +85,9 @@ export function ProfileView({ accountId }: ProfileViewProps) {
 
   return (
     <div className="animate-fade-up">
-      {/* Header zone */}
       <div className="relative rounded-xl border border-border bg-card/50 overflow-hidden">
-        {/* Decorative banner */}
         <div className="h-28 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
 
-        {/* Avatar + identity */}
         <div className="px-6 pb-6">
           <div className="flex items-end gap-4 -mt-12">
             {imageUrl && !imgError ? (
@@ -90,29 +110,56 @@ export function ProfileView({ accountId }: ProfileViewProps) {
               <p className="text-sm text-muted-foreground font-mono truncate">{accountId}</p>
             </div>
 
-            {isOwn && (
-              <Link to="/profile" className="pb-1">
-                <Button variant="outline" size="sm" className="font-mono">
-                  edit_
-                </Button>
-              </Link>
-            )}
+            <div className="flex items-center gap-2 pb-1">
+              {isOwn ? (
+                <Link to="/profile/edit">
+                  <Button variant="outline" size="sm" className="font-mono">
+                    edit_
+                  </Button>
+                </Link>
+              ) : (
+                <FollowButton
+                  targetAccountId={accountId}
+                  isFollowing={isFollowing}
+                  onToggle={(now) => {
+                    setIsFollowing(now);
+                    setFollowerCount((c) => c + (now ? 1 : -1));
+                  }}
+                />
+              )}
+            </div>
           </div>
 
-          {/* Bio */}
+          {/* Counts */}
+          <div className="mt-4 flex gap-4">
+            <Link
+              to="/profile/$accountId/followers"
+              params={{ accountId }}
+              className="text-sm hover:text-primary transition-colors"
+            >
+              <span className="font-semibold">{followerCount}</span>{" "}
+              <span className="text-muted-foreground">followers</span>
+            </Link>
+            <Link
+              to="/profile/$accountId/following"
+              params={{ accountId }}
+              className="text-sm hover:text-primary transition-colors"
+            >
+              <span className="font-semibold">{followingCount}</span>{" "}
+              <span className="text-muted-foreground">following</span>
+            </Link>
+          </div>
+
           {about && (
-            <p className="mt-5 text-sm text-foreground/80 leading-relaxed max-w-prose">{about}</p>
+            <p className="mt-4 text-sm text-foreground/80 leading-relaxed max-w-prose">{about}</p>
           )}
 
-          {/* Tags + Links row */}
           {(tags.length > 0 || hasLinks) && (
             <div className="mt-5 pt-5 border-t border-border/50 flex flex-wrap items-center gap-x-5 gap-y-3">
               {tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="font-mono text-xs">
-                      {tag}
-                    </Badge>
+                    <TagBadge key={tag} tag={tag} />
                   ))}
                 </div>
               )}
@@ -193,7 +240,6 @@ export function ProfileView({ accountId }: ProfileViewProps) {
             </div>
           )}
 
-          {/* Empty state */}
           {empty && (
             <div className="mt-5 pt-5 border-t border-border/50">
               <p className="text-sm text-muted-foreground">

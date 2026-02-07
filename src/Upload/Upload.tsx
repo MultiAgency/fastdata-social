@@ -1,4 +1,3 @@
-import { useNear } from "@near-kit/react";
 import { useCallback, useState } from "react";
 import type { ReactFilesFile } from "react-files";
 import Files from "react-files";
@@ -86,8 +85,7 @@ async function transformFiles(
 }
 
 export function Upload() {
-  const { accountId } = useWallet();
-  const near = useNear();
+  const { accountId, near } = useWallet();
   const [uploading, setUploading] = useState<boolean>(false);
   const [relativePath, setRelativePath] = useState<string>("/");
   const [files, setFiles] = useState<ReactFilesFile[]>([]);

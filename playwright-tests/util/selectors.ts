@@ -6,3 +6,15 @@ export async function expectAppShell(page: Page) {
 	await expect(nav).toBeVisible();
 	await expect(nav.getByRole("link", { name: "fastdata" })).toBeVisible();
 }
+
+/** Inject a fake wallet accountId so protected routes render without real signing. */
+export function injectTestWallet(page: Page, accountId = "e2e-test.near") {
+	return page.addInitScript((id) => {
+		(window as unknown as Record<string, unknown>).__E2E_ACCOUNT_ID = id;
+	}, accountId);
+}
+
+/** Assert the Explorer page loaded (explore button visible). */
+export async function expectExplorerPage(page: Page) {
+	await expect(page.getByRole("button", { name: "explore_" })).toBeVisible();
+}

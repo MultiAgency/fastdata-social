@@ -1,4 +1,3 @@
-import { useNear } from "@near-kit/react";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,8 +13,7 @@ import { AccountList } from "./AccountList";
 import { TransactionAlert } from "./TransactionAlert";
 
 export function Social() {
-  const { accountId } = useWallet();
-  const near = useNear();
+  const { accountId, near } = useWallet();
   const client = useClient();
 
   const [following, setFollowing] = useState<string[]>([]);

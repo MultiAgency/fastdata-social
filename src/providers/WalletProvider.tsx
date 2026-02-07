@@ -8,6 +8,7 @@ import { isValidNearAccount } from "../utils/validation";
 
 interface WalletContextType {
   accountId: string | null;
+  near: Near | null;
   isConnected: boolean;
   isInitializing: boolean;
   connectWallet: () => Promise<void>;
@@ -43,14 +44,28 @@ function createNearInstance(connector: NearConnector, network: "mainnet" | "test
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [near, setNear] = useState<Near | null>(null);
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  // E2E test escape hatch: inject accountId without real wallet.
+  // Activated by Playwright via page.addInitScript(() => { window.__E2E_ACCOUNT_ID = "test.near"; })
+  // Only available when built with VITE_E2E=true (set by Playwright config).
+  const e2eAccountId =
+    import.meta.env.VITE_E2E && typeof window !== "undefined"
+      ? (window as unknown as Record<string, unknown>).__E2E_ACCOUNT_ID
+      : null;
+
+  const [near, setNear] = useState<Near | null>(
+    typeof e2eAccountId === "string" ? new Near({ network: "mainnet" }) : null,
+  );
+  const [accountId, setAccountId] = useState<string | null>(
+    typeof e2eAccountId === "string" ? e2eAccountId : null,
+  );
+  const [isConnected, setIsConnected] = useState(typeof e2eAccountId === "string");
+  const [isInitializing, setIsInitializing] = useState(typeof e2eAccountId !== "string");
   const [connector, setConnector] = useState<NearConnector | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    // Skip real wallet init when E2E account is injected
+    if (typeof e2eAccountId === "string") return;
     let mounted = true;
     let hotConnector: NearConnector | null = null;
 
@@ -149,7 +164,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         hotConnector.removeAllListeners("wallet:signOut");
       }
     };
-  }, []);
+  }, [e2eAccountId]);
 
   const connectWallet = async () => {
     if (!connector || isInitializing) return;
@@ -181,6 +196,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const walletValue: WalletContextType = {
     accountId,
+    near,
     isConnected,
     isInitializing,
     connectWallet,

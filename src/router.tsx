@@ -1,46 +1,16 @@
-import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import App from "./App";
+import { Directory } from "./Directory/Directory";
 import { Playground } from "./Playground/Playground";
+import { Connections } from "./Profile/Connections";
+import { ProfileEditor } from "./Profile/ProfileEditor";
 import { ProfilePage } from "./Profile/ProfilePage";
 import { ExplorerView } from "./Social/Explorer/ExplorerView";
 import { GraphView } from "./Social/GraphView";
-import { Social } from "./Social/Social";
 import { Upload } from "./Upload/Upload";
 
 const rootRoute = createRootRoute({
   component: App,
-});
-
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/playground" });
-  },
-});
-
-const uploadRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/upload",
-  component: Upload,
-});
-
-const socialRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/social",
-  component: Social,
-});
-
-const graphRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/graph",
-  component: () => <RequireWallet>{(id) => <GraphView accountId={id} />}</RequireWallet>,
-});
-
-const explorerRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/explorer",
-  component: () => <RequireWallet>{(id) => <ExplorerView accountId={id} />}</RequireWallet>,
 });
 
 // Wrapper that gates on wallet connection before rendering
@@ -60,6 +30,46 @@ function RequireWallet({ children }: { children: (accountId: string) => React.Re
   return <>{children(accountId)}</>;
 }
 
+interface DirectorySearch {
+  tag?: string;
+}
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  component: Directory,
+  validateSearch: (search: Record<string, unknown>): DirectorySearch => ({
+    tag: typeof search.tag === "string" ? search.tag : undefined,
+  }),
+});
+
+const uploadRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/upload",
+  component: Upload,
+});
+
+const graphRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/graph/$accountId",
+  component: () => {
+    const { accountId } = graphRoute.useParams();
+    return <GraphView accountId={accountId} />;
+  },
+});
+
+const explorerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/explorer",
+  component: () => <RequireWallet>{(id) => <ExplorerView accountId={id} />}</RequireWallet>,
+});
+
+const profileEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile/edit",
+  component: () => <RequireWallet>{() => <ProfileEditor />}</RequireWallet>,
+});
+
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/profile",
@@ -72,6 +82,18 @@ const profileAccountRoute = createRoute({
   component: ProfilePage,
 });
 
+const profileFollowersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile/$accountId/followers",
+  component: () => <Connections type="followers" />,
+});
+
+const profileFollowingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile/$accountId/following",
+  component: () => <Connections type="following" />,
+});
+
 const playgroundRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/playground",
@@ -81,12 +103,14 @@ const playgroundRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   uploadRoute,
-  socialRoute,
   graphRoute,
   explorerRoute,
-  playgroundRoute,
+  profileEditRoute,
   profileRoute,
   profileAccountRoute,
+  profileFollowersRoute,
+  profileFollowingRoute,
+  playgroundRoute,
 ]);
 
 export const router = createRouter({

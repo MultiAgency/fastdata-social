@@ -1,4 +1,3 @@
-import { useNear } from "@near-kit/react";
 import { useCallback, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import {
   extractMentions,
 } from "../client";
 import { Constants } from "../hooks/constants";
+import { useWallet } from "../providers/WalletProvider";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,7 +100,7 @@ function CardHeader({ title, endpoints }: { title: string; endpoints: string }) 
 // ---------------------------------------------------------------------------
 
 export function Playground({ accountId }: PlaygroundProps) {
-  const near = useNear();
+  const { near } = useWallet();
 
   // Shared state
   const targetContract = Constants.KV_CONTRACT_ID;
@@ -136,7 +136,7 @@ export function Playground({ accountId }: PlaygroundProps) {
   // commitKv
   // -------------------------------------------------------------------------
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: near reference is stable from useNear()
+  // biome-ignore lint/correctness/useExhaustiveDependencies: near reference is stable from useWallet()
   const commitKv = useCallback(
     async (args: Record<string, unknown>, label: string) => {
       if (!near) return;

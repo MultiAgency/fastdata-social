@@ -1,4 +1,3 @@
-import { useNear } from "@near-kit/react";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -40,8 +39,7 @@ function parseTags(input: string): string[] {
 }
 
 export function ProfileEditor() {
-  const { accountId } = useWallet();
-  const near = useNear();
+  const { accountId, near } = useWallet();
   const client = useClient();
 
   const [name, setName] = useState("");

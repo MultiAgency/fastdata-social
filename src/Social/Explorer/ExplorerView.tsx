@@ -31,7 +31,7 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton, methods are stable
   const explore = useCallback(
     async (pattern?: string) => {
-      const q = pattern || query || `${currentAccount}/*`;
+      const q = pattern || query || `${currentAccount}/profile/**`;
       setLoading(true);
       setError(null);
       setSelectedPath(null);
@@ -54,14 +54,12 @@ export const ExplorerView: React.FC<ExplorerViewProps> = ({ accountId: initialAc
     [query, currentAccount, contractId],
   );
 
+  // On account change, reset state and auto-explore the profile sub-tree
+  // (root-level wildcard queries may return empty on some API implementations)
   // biome-ignore lint/correctness/useExhaustiveDependencies: explore intentionally excluded to avoid re-fetch on query/contractId changes
   useEffect(() => {
     setBreadcrumb([currentAccount]);
-    explore(`${currentAccount}/*`);
-    // Only re-fetch when the account changes, not on query/contractId edits.
-    // explore is intentionally excluded — it closes over query/contractId
-    // which would cause spurious re-fetches on every keystroke.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    explore(`${currentAccount}/profile/**`);
   }, [currentAccount]);
 
   const handleQuickPath = (path: string) => {

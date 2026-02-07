@@ -18,7 +18,7 @@ export default defineConfig({
 	projects: [{ name: "chromium", use: { browserName: "chromium" } }],
 
 	webServer: {
-		command: "bun run build && bun run start",
+		command: "VITE_E2E=true bun run build && bun run start",
 		url: "http://localhost:3000",
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,
