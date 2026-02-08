@@ -1,10 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AccountCard } from "../components/AccountCard";
-import { FollowButton } from "../components/FollowButton";
-import { Constants } from "../hooks/constants";
 import { useClient } from "../hooks/useClient";
 import { useWallet } from "../providers/WalletProvider";
 
@@ -17,42 +14,50 @@ export function Directory() {
   const { tag } = useSearch({ from: "/" });
 
   const [accounts, setAccounts] = useState<string[]>([]);
-  const [count, setCount] = useState(0);
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [offset, setOffset] = useState(0);
-  const [hasJoined, setHasJoined] = useState(false);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasProfile, setHasProfile] = useState(true);
-  const [justJoined, setJustJoined] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const activeTag = tag ?? "";
+  const prevTagRef = useRef(activeTag);
 
-  // Load directory (root.near's followers) or tag-filtered accounts
+  // Load directory: all accounts across all contracts, or tag-filtered accounts
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   useEffect(() => {
+    // Reset cursor when tag changes — effect will re-run with cursor=undefined
+    if (prevTagRef.current !== activeTag) {
+      prevTagRef.current = activeTag;
+      setCursor(undefined);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
 
     const fetchAccounts = activeTag
       ? client.kvByKey(`profile/tags/${activeTag}`, { limit: PAGE_SIZE }).then((entries) => ({
-          accounts: entries.map((e) => e.predecessor_id),
-          count: entries.length,
+          data: entries.map((e) => e.predecessor_id),
+          meta: { has_more: false },
         }))
-      : client
-          .getFollowers(Constants.HUB_ACCOUNT, { limit: PAGE_SIZE, offset })
-          .then((res) => ({ accounts: res.accounts, count: res.count }));
+      : client.kvAccounts(undefined, undefined, {
+          limit: PAGE_SIZE + 1,
+          afterAccount: cursor,
+          scan: true,
+        });
 
     fetchAccounts
       .then((res) => {
-        if (!cancelled) {
-          setAccounts(res.accounts);
-          setCount(res.count);
-        }
+        if (cancelled) return;
+        const hasExtra = res.data.length > PAGE_SIZE;
+        setHasMore(hasExtra || res.meta.has_more);
+        const page = res.data.slice(0, PAGE_SIZE);
+        setAccounts((prev) => (cursor ? [...prev, ...page] : page));
       })
       .catch(() => {
-        if (!cancelled) {
-          setAccounts([]);
-          setCount(0);
-        }
+        if (cancelled) return;
+        setAccounts([]);
+        setHasMore(false);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -61,9 +66,9 @@ export function Directory() {
     return () => {
       cancelled = true;
     };
-  }, [activeTag, offset]);
+  }, [activeTag, cursor]);
 
-  // Load signed-in user's following set + check if joined + check if has profile
+  // Load signed-in user's following set + check if has profile
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   useEffect(() => {
     if (!accountId) return;
@@ -72,9 +77,7 @@ export function Directory() {
     Promise.all([client.getFollowing(accountId), client.getProfile(accountId)])
       .then(([followingRes, profile]) => {
         if (cancelled) return;
-        const set = new Set(followingRes.accounts);
-        setFollowingSet(set);
-        setHasJoined(set.has(Constants.HUB_ACCOUNT));
+        setFollowingSet(new Set(followingRes.accounts));
         setHasProfile(!!profile && Object.keys(profile).length > 0);
       })
       .catch(() => {});
@@ -93,78 +96,23 @@ export function Directory() {
     });
   }, []);
 
-  const handleJoinToggle = useCallback(
-    (nowFollowing: boolean) => {
-      setHasJoined(nowFollowing);
-      if (nowFollowing && accountId) {
-        setJustJoined(true);
-        setAccounts((prev) => (prev.includes(accountId) ? prev : [accountId, ...prev]));
-        setCount((c) => c + 1);
-      }
-    },
-    [accountId],
-  );
-
-  const hasMore = offset + PAGE_SIZE < count;
-
   return (
     <div className="animate-fade-up">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight mb-1">Directory</h1>
-        <p className="text-sm text-muted-foreground font-mono">discover people on NEAR Protocol</p>
+        <p className="text-sm text-muted-foreground font-mono">accounts on the network</p>
       </div>
 
-      {/* Join banner: signed in but not following root.near */}
-      {accountId && !hasJoined && !justJoined && (
-        <div className="mb-6 p-5 rounded-xl border border-primary/30 bg-primary/5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="font-semibold text-sm">Join the Directory</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Follow {Constants.HUB_ACCOUNT} to appear in the directory and be discoverable.
-              </p>
-            </div>
-            <FollowButton
-              targetAccountId={Constants.HUB_ACCOUNT}
-              isFollowing={false}
-              onToggle={handleJoinToggle}
-              label="join"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Just joined success message */}
-      {justJoined && (
-        <Alert variant="default" className="mb-6 border-l-2 border-l-primary bg-primary/5">
-          <AlertDescription>
-            <span className="font-semibold text-primary">Welcome to the directory!</span>
-            {!hasProfile && (
-              <span className="ml-2 text-sm text-muted-foreground">
-                <Link to="/profile/edit" className="text-primary hover:underline font-mono">
-                  Set up your profile →
-                </Link>
-              </span>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Signed out CTA */}
-      {!accountId && (
-        <div className="mb-6 p-4 rounded-xl border border-border bg-card/50 text-center">
-          <p className="text-sm text-muted-foreground">
-            Sign in to join the directory and connect with others.
-          </p>
-        </div>
-      )}
-
-      {/* Profile prompt for joined users without a profile */}
-      {accountId && hasJoined && !hasProfile && !justJoined && (
+      {/* Profile prompt for signed-in users without a profile */}
+      {accountId && !hasProfile && (
         <div className="mb-6 p-4 rounded-xl border border-border bg-card/50">
           <p className="text-sm text-muted-foreground">
-            <Link to="/profile/edit" className="text-primary hover:underline font-mono">
-              Complete your profile →
+            <Link
+              to="/profile/$accountId"
+              params={{ accountId: accountId ?? "" }}
+              className="text-primary hover:underline font-mono"
+            >
+              Set up your profile &rarr;
             </Link>
           </p>
         </div>
@@ -183,7 +131,7 @@ export function Directory() {
         </div>
       )}
 
-      {loading ? (
+      {loading && accounts.length === 0 ? (
         <div className="flex justify-center py-20">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
@@ -209,9 +157,7 @@ export function Directory() {
           </div>
           <h2 className="text-lg font-semibold mb-2">No one here yet</h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {activeTag
-              ? `No accounts tagged "${activeTag}" yet.`
-              : "Be the first to join the directory."}
+            {activeTag ? `No accounts tagged "${activeTag}" yet.` : "No accounts found."}
           </p>
         </div>
       ) : (
@@ -232,9 +178,14 @@ export function Directory() {
                 variant="outline"
                 size="sm"
                 className="font-mono"
-                onClick={() => setOffset(offset + PAGE_SIZE)}
+                disabled={loading}
+                onClick={() => setCursor(accounts[accounts.length - 1])}
               >
-                load more
+                {loading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                ) : (
+                  "load more"
+                )}
               </Button>
             </div>
           )}

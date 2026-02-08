@@ -84,40 +84,6 @@
   --glow-accent: oklch(0.75 0.15 55 / 15%);
 }
 
-.dark {
-  --background: oklch(0.11 0.02 260);
-  --foreground: oklch(0.93 0.01 260);
-  --card: oklch(0.15 0.02 260);
-  --card-foreground: oklch(0.93 0.01 260);
-  --popover: oklch(0.15 0.02 260);
-  --popover-foreground: oklch(0.93 0.01 260);
-  --primary: oklch(0.82 0.19 155);
-  --primary-foreground: oklch(0.13 0.04 155);
-  --secondary: oklch(0.2 0.02 260);
-  --secondary-foreground: oklch(0.85 0.01 260);
-  --muted: oklch(0.18 0.015 260);
-  --muted-foreground: oklch(0.6 0.02 260);
-  --accent: oklch(0.75 0.15 55);
-  --accent-foreground: oklch(0.13 0.04 55);
-  --destructive: oklch(0.65 0.22 25);
-  --border: oklch(0.24 0.02 260);
-  --input: oklch(0.2 0.02 260);
-  --ring: oklch(0.82 0.19 155);
-  --chart-1: oklch(0.82 0.19 155);
-  --chart-2: oklch(0.75 0.15 55);
-  --chart-3: oklch(0.65 0.22 25);
-  --chart-4: oklch(0.6 0.2 280);
-  --chart-5: oklch(0.7 0.15 200);
-  --sidebar: oklch(0.13 0.02 260);
-  --sidebar-foreground: oklch(0.93 0.01 260);
-  --sidebar-primary: oklch(0.82 0.19 155);
-  --sidebar-primary-foreground: oklch(0.13 0.04 155);
-  --sidebar-accent: oklch(0.2 0.02 260);
-  --sidebar-accent-foreground: oklch(0.93 0.01 260);
-  --sidebar-border: oklch(0.24 0.02 260);
-  --sidebar-ring: oklch(0.82 0.19 155);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -152,10 +118,6 @@ body::before {
   box-shadow: 0 0 20px oklch(0.82 0.19 155 / 20%), 0 0 60px oklch(0.82 0.19 155 / 5%);
 }
 
-.glow-accent {
-  box-shadow: 0 0 20px oklch(0.75 0.15 55 / 20%), 0 0 60px oklch(0.75 0.15 55 / 5%);
-}
-
 /* Smooth page transitions */
 @keyframes fade-up {
   from {
@@ -172,6 +134,34 @@ body::before {
   animation: fade-up 0.4s ease-out;
 }
 
+/* Staggered fade-up for lists */
+.animate-fade-up-stagger > * {
+  opacity: 0;
+  animation: fade-up 0.35s ease-out forwards;
+}
+.animate-fade-up-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.animate-fade-up-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.animate-fade-up-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.animate-fade-up-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.animate-fade-up-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.animate-fade-up-stagger > *:nth-child(6) { animation-delay: 250ms; }
+
+/* Mobile slide-up menu */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 20px oklch(0.82 0.19 155 / 15%); }
   50% { box-shadow: 0 0 30px oklch(0.82 0.19 155 / 30%); }
@@ -179,6 +169,39 @@ body::before {
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Shimmer effect for connect button */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.btn-shimmer {
+  background-size: 200% auto;
+  background-image: linear-gradient(
+    90deg,
+    oklch(0.82 0.19 155) 0%,
+    oklch(0.88 0.15 155) 50%,
+    oklch(0.82 0.19 155) 100%
+  );
+  animation: shimmer 3s linear infinite;
+}
+
+/* Profile header gradient */
+.profile-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.82 0.19 155 / 12%) 0%,
+    oklch(0.75 0.15 55 / 8%) 40%,
+    oklch(0.2 0.02 260 / 0%) 100%
+  );
+}
+
+/* Dot pattern for profile banner */
+.dot-pattern {
+  background-image: radial-gradient(oklch(1 0 0 / 5%) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
 
 /* Scrollbar styling */

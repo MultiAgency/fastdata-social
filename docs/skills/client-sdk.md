@@ -14,11 +14,11 @@ FastData (src/client/FastData.ts)
 `src/client/index.ts` re-exports everything:
 
 ```ts
+export * from "./builders";     // all build*Args functions
 export { FastData } from "./FastData";
 export { Social } from "./Social";
-export * from "./builders";     // all build*Args functions
-export * from "./utils";        // extractMentions, extractHashtags
 export type * from "./types";   // all interfaces
+export * from "./utils";        // extractMentions, extractHashtags
 ```
 
 ## Instantiation
@@ -108,11 +108,12 @@ opts?: { currentAccountId?: string; limit?: number; offset?: number; fields?: st
 **`kvBatch(predecessorId, currentAccountId, keys[])`** → `KvBatchResult[]`
 POST /v1/kv/batch — Multi-key fetch. Returns `{ key, found, value?, error? }` per key.
 
-**`kvAccounts(currentAccountId, key, opts?)`** → `string[]`
-GET /v1/kv/accounts — List predecessor accounts that have data for a key.
+**`kvAccounts(contractId?, key?, opts?)`** → `{ data: string[]; meta: PaginationMeta }`
+GET /v1/kv/accounts — List predecessor accounts. Omit `contractId` with `scan: true` to query all contracts.
 ```ts
-opts?: { limit?: number; offset?: number; excludeNull?: boolean }
+opts?: { limit?: number; offset?: number; excludeNull?: boolean; afterAccount?: string; scan?: boolean }
 ```
+`PaginationMeta`: `{ has_more: boolean; next_cursor?: string; truncated?: boolean }`
 
 **`kvDiff(predecessorId, currentAccountId, key, blockHeightA, blockHeightB, opts?)`** → `KvDiffResponse`
 GET /v1/kv/diff — Compare a key's value at two block heights. Returns `{ a: KvEntry | null, b: KvEntry | null }`.
@@ -191,8 +192,8 @@ interface FastDataTransaction {
 | `buildSetProfile(signerId, profile, contractId?)` | `buildProfileArgs` | Set profile fields |
 | `buildCreatePost(signerId, post, contractId?)` | `buildPostArgs` | Create a post |
 | `buildCreateComment(signerId, comment, contractId?)` | `buildCommentArgs` | Comment on a post |
-| `buildFollow(signerId, target, contractId?)` | `buildFollowArgs` | Follow an account |
-| `buildUnfollow(signerId, target, contractId?)` | `buildUnfollowArgs` | Unfollow an account |
+| `buildFollow(signerId, targetAccountId, contractId?)` | `buildFollowArgs` | Follow an account |
+| `buildUnfollow(signerId, targetAccountId, contractId?)` | `buildUnfollowArgs` | Unfollow an account |
 | `buildLike(signerId, item, contractId?)` | `buildLikeArgs` | Like a post |
 | `buildUnlike(signerId, item, contractId?)` | `buildUnlikeArgs` | Unlike a post |
 | `buildRepost(signerId, item, contractId?)` | `buildRepostArgs` | Repost |
@@ -202,16 +203,19 @@ The base class also exposes `buildCommit(kvPairs, contractId?)` directly for cus
 ### Step 2: Submit
 
 ```tsx
-const near = useNear();
+const { near } = useWallet();
 const tx = client.buildFollow(accountId, "target.near");
-await near.call(tx.contractId, tx.methodName, tx.args, tx.gas);
+await near
+  .transaction(accountId)
+  .functionCall(tx.contractId, tx.methodName, tx.args, { gas: "10 Tgas" })
+  .send();
 ```
 
 See `docs/skills/near-kit.md` for signing details.
 
 ## Builders (src/client/builders.ts)
 
-Pure functions that produce `Record<string, string | null>`:
+Pure functions that produce `Record<string, string>` (or `Record<string, string | null>` for deletion builders):
 
 | Builder | Keys produced |
 |---|---|

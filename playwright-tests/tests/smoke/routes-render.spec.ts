@@ -1,7 +1,14 @@
 import { test } from "@playwright/test";
 import { expectAppShell, injectTestWallet } from "../../util/selectors";
 
-const routes = ["/", "/upload", "/profile", "/graph/e2e-test.near", "/explorer"] as const;
+const routes = [
+	"/",
+	"/profile",
+	"/profile/e2e-test.near",
+	"/profile/e2e-test.near/followers",
+	"/profile/e2e-test.near/following",
+	"/graph/e2e-test.near",
+] as const;
 
 for (const route of routes) {
 	test.describe(route, () => {

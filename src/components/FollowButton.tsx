@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { buildFollowArgs, buildUnfollowArgs } from "../client";
 import { Constants } from "../hooks/constants";
@@ -15,11 +15,15 @@ export function FollowButton({ targetAccountId, isFollowing, onToggle, label }: 
   const { accountId, near } = useWallet();
   const [optimistic, setOptimistic] = useState(isFollowing);
   const [transacting, setTransacting] = useState(false);
+  const transactingRef = useRef(transacting);
+  transactingRef.current = transacting;
 
-  // Sync optimistic state when prop changes
-  if (isFollowing !== optimistic && !transacting) {
-    setOptimistic(isFollowing);
-  }
+  // Sync optimistic state when prop changes (outside of active transaction)
+  useEffect(() => {
+    if (!transactingRef.current) {
+      setOptimistic(isFollowing);
+    }
+  }, [isFollowing]);
 
   const handleClick = useCallback(async () => {
     if (!accountId || !near || accountId === targetAccountId) return;

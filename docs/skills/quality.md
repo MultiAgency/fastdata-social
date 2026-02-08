@@ -24,10 +24,9 @@
 
 ### React Patterns
 - `useClient()` for SDK reads and write builders
-- `useNear()` for transaction signing
-- `useWallet()` for account state
-- Components receive `accountId` as a prop from `RequireWallet`
-- Optimistic updates with delayed refresh (see `src/Social/Social.tsx` — updates local state, then re-fetches after 3 seconds)
+- `useWallet()` for account state and `near` instance (transaction signing)
+- Routes extract `accountId` from URL params or `useWallet()` — no `RequireWallet` gate
+- Optimistic updates with delayed refresh (see `src/Profile/ProfileView.tsx` — updates local state, then re-fetches after 3 seconds)
 
 ### TypeScript
 - Strict mode
@@ -39,12 +38,13 @@
 ### Running Tests
 
 ```bash
-bun test
+bun test src/client/__tests__/   # SDK unit tests (Bun native runner, must specify path)
+bun run test:e2e        # Playwright E2E tests
 ```
 
 ### Test Location
 
-Tests live in `src/client/__tests__/`. `builders.test.ts` covers all builder functions, `FastData.test.ts` covers all SDK read methods, `utils.test.ts` covers extractMentions/extractHashtags.
+Unit tests live in `src/client/__tests__/`. `builders.test.ts` covers all builder functions, `FastData.test.ts` covers all SDK read methods, `utils.test.ts` covers extractMentions/extractHashtags. E2E tests live in `playwright-tests/tests/`.
 
 ### Test Pattern
 
@@ -75,5 +75,4 @@ Create a new file in `src/client/__tests__/` or add to `builders.test.ts`. Use `
 - **Account validation**: Always validate NEAR account IDs with `isValidNearAccount()` from `src/utils/validation.ts` before using them in keys or paths
 - **JSON injection**: Builder args are serialized with `JSON.stringify()` — don't concatenate user input into JSON strings manually
 - **FastFS paths**: Validate no `..` segments in file paths, max 1024 characters
-- **localStorage**: Used as a cache/fallback — don't store sensitive data. Keys follow pattern `fastnear_following_{accountId}`
 - **Wallet disconnect**: Handle mid-transaction disconnects gracefully — check `isConnected` before signing

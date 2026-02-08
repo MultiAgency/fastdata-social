@@ -29,9 +29,6 @@ Glow variables: `--glow-primary` and `--glow-accent` are 15% opacity versions fo
 <!-- Primary glow on buttons/active elements -->
 <button class="glow-primary">...</button>
 
-<!-- Accent glow -->
-<div class="glow-accent">...</div>
-
 <!-- Animated pulsing glow -->
 <div class="animate-pulse-glow">...</div>
 ```
@@ -60,17 +57,25 @@ This is a deliberate aesthetic. Use it for any loading/status indicators.
 </div>
 ```
 
-## Page Entry Animation
+## Animations
 
 ```html
-<div class="animate-fade-up">
-  <!-- page content fades up on mount -->
+<!-- Page entry: fades up on mount -->
+<div class="animate-fade-up">...</div>
+
+<!-- Staggered list: children fade up in sequence (50ms delay per child, up to 6) -->
+<div class="animate-fade-up-stagger">
+  <div>first</div>
+  <div>second</div>
 </div>
+
+<!-- Mobile menu slide-up -->
+<div class="animate-slide-up">...</div>
 ```
 
 ## Navigation
 
-Nav links live in `src/Header/Header.tsx`. Desktop: inline links after logo. Mobile: hamburger dropdown. Active link uses `text-primary bg-primary/10`. Inactive uses `text-muted-foreground hover:text-foreground hover:bg-secondary/50`. Links use trailing underscore format: `playground_`, `upload_`, etc.
+Nav links live in `src/Header/Header.tsx`. Desktop: inline links after logo. Mobile: hamburger dropdown. Active link uses `text-primary bg-primary/10 border border-primary/20`. Inactive uses `text-muted-foreground hover:text-primary`. Links use trailing underscore format: `directory_`, `graph_`.
 
 ## Grid Layouts
 
@@ -106,8 +111,10 @@ Use shadcn/ui for interactive elements (buttons, inputs, tabs). Use raw elements
 ## Spinner
 
 ```html
-<div class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+<span class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
 ```
+
+Use `h-5 w-5` for larger spinners. Use `border-current` or `border-primary-foreground` to match surrounding text.
 
 ## Typography Hierarchy
 
@@ -115,6 +122,19 @@ Use shadcn/ui for interactive elements (buttons, inputs, tabs). Use raw elements
 - Section header: `text-sm font-mono text-muted-foreground`
 - Body: `text-sm`
 - Data/labels: `text-xs font-mono`
+
+## Decorative Classes
+
+```html
+<!-- Shimmer gradient on connect button -->
+<button class="btn-shimmer">Connect</button>
+
+<!-- Profile header gradient (primary → accent → transparent) -->
+<div class="profile-gradient">...</div>
+
+<!-- Subtle dot pattern overlay for profile banner -->
+<div class="dot-pattern">...</div>
+```
 
 ## Background
 

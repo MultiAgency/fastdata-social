@@ -6,8 +6,9 @@ export interface MockOverrides {
 	health?: object | false;
 	followers?: object;
 	following?: object;
-	socialKeys?: object;
-	socialGet?: object;
+	accounts?: object;
+	kvByKey?: object;
+	profile?: object | null;
 }
 
 /**
@@ -32,21 +33,29 @@ export async function mockFastDataApi(page: Page, overrides: MockOverrides = {})
 				return route.fulfill({ json: overrides.health ?? FIXTURES.healthOk });
 			}
 
-			// Social endpoints (POST)
+			// KV accounts (Directory)
+			if (path === "/v1/kv/accounts") {
+				return route.fulfill({ json: overrides.accounts ?? FIXTURES.directoryAccounts });
+			}
+
+			// KV by-key (tag filtering)
+			if (path === "/v1/kv/by-key") {
+				return route.fulfill({ json: overrides.kvByKey ?? FIXTURES.tagFilteredAccounts });
+			}
+
+			// Social profile
+			if (path === "/v1/social/profile") {
+				return route.fulfill({ json: overrides.profile ?? FIXTURES.sampleProfile });
+			}
+
+			// Social endpoints
 			if (path === "/v1/social/followers") {
 				return route.fulfill({ json: overrides.followers ?? FIXTURES.emptyFollowers });
 			}
 			if (path === "/v1/social/following") {
 				return route.fulfill({ json: overrides.following ?? FIXTURES.emptyFollowing });
 			}
-			if (path === "/v1/social/keys") {
-				return route.fulfill({ json: overrides.socialKeys ?? FIXTURES.sampleSocialKeys });
-			}
-			if (path === "/v1/social/get") {
-				return route.fulfill({ json: overrides.socialGet ?? FIXTURES.sampleSocialGet });
-			}
-
-			// KV endpoints — pass through by default
+				// Everything else — pass through
 			await route.continue();
 		},
 	);

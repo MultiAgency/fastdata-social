@@ -18,7 +18,7 @@ test.describe("Connections page — empty state", () => {
 		await expectAppShell(page);
 
 		// Should show breadcrumb link to profile
-		await expect(page.getByRole("link", { name: "e2e-test.near" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "e2e-test.near" }).first()).toBeVisible();
 		await expect(page.getByText("0 total")).toBeVisible();
 
 		// Empty state message
@@ -32,7 +32,7 @@ test.describe("Connections page — empty state", () => {
 		await expectAppShell(page);
 
 		// Should show breadcrumb link to profile
-		await expect(page.getByRole("link", { name: "e2e-test.near" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "e2e-test.near" }).first()).toBeVisible();
 		await expect(page.getByText("0 total")).toBeVisible();
 
 		// Empty state message

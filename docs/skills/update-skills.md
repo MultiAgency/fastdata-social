@@ -17,7 +17,7 @@ For each skill file listed below:
 | Skill doc | Source files to check |
 |---|---|
 | `client-sdk.md` | `src/client/FastData.ts`, `src/client/Social.ts`, `src/client/builders.ts`, `src/client/utils.ts`, `src/client/types.ts`, `src/client/constants.ts`, `src/client/index.ts`, `src/hooks/useClient.ts` |
-| `architecture.md` | `src/router.tsx`, `src/App.tsx`, `src/main.tsx`, `src/hooks/constants.ts`, `src/hooks/useClient.ts`, `src/providers/WalletProvider.tsx`, `src/Header/Header.tsx`, `src/Profile/ProfilePage.tsx`, `src/Profile/ProfileView.tsx`, `src/Profile/ProfileEditor.tsx`, directory listing of `src/` |
+| `architecture.md` | `src/router.tsx`, `src/App.tsx`, `src/main.tsx`, `src/hooks/constants.ts`, `src/hooks/useClient.ts`, `src/providers/WalletProvider.tsx`, `src/Header/Header.tsx`, `src/Profile/ProfilePage.tsx`, `src/Profile/ProfileView.tsx`, `src/Profile/Connections.tsx`, `src/Directory/Directory.tsx`, directory listing of `src/` |
 | `quality.md` | `src/client/__tests__/`, `src/client/builders.ts`, `biome.json`, `package.json` (scripts) |
 | `add-feature.md` | `src/client/builders.ts`, `src/client/Social.ts`, `src/client/types.ts`, `src/router.tsx`, `src/Header/Header.tsx` |
 | `operations.md` | `src/client/FastData.ts`, `src/hooks/useClient.ts`, `src/hooks/constants.ts`, `package.json` (scripts) |
@@ -32,7 +32,7 @@ For each skill file listed below:
 - Exports added or removed from `src/client/index.ts`
 - Builder `signerId` usage (which builders use it vs prefix with `_`)
 - `useClient()` implementation pattern (singleton vs context)
-- `useNear()` return shape (returns `near` directly, not `{ near }`)
+- `useWallet()` return shape (includes `near: Near | null` for transaction signing)
 - Navigation location (nav links in `src/Header/Header.tsx`, not App.tsx)
 - New files added to `src/client/` or new page directories not reflected in architecture
 - package.json scripts added or removed

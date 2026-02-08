@@ -13,9 +13,11 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
   if (loading) {
     return (
       <div className="flex flex-col items-center py-12">
-        <output className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent">
-          <span className="sr-only">Loading...</span>
-        </output>
+        <span
+          className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
+          aria-hidden="true"
+        />
+        <span className="sr-only">Loading...</span>
         <p className="mt-3 text-sm text-muted-foreground font-mono">loading {type}_</p>
       </div>
     );

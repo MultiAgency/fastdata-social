@@ -1,34 +1,26 @@
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, Link } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import App from "./App";
 import { Directory } from "./Directory/Directory";
-import { Playground } from "./Playground/Playground";
 import { Connections } from "./Profile/Connections";
-import { ProfileEditor } from "./Profile/ProfileEditor";
 import { ProfilePage } from "./Profile/ProfilePage";
-import { ExplorerView } from "./Social/Explorer/ExplorerView";
-import { GraphView } from "./Social/GraphView";
-import { Upload } from "./Upload/Upload";
+
+const LazyGraphView = lazy(() =>
+  import("./Social/GraphView").then((m) => ({ default: m.GraphView })),
+);
 
 const rootRoute = createRootRoute({
   component: App,
+  notFoundComponent: () => (
+    <div className="flex flex-col items-center justify-center py-20 animate-fade-up">
+      <h1 className="text-4xl font-semibold tracking-tight mb-2">404</h1>
+      <p className="text-sm text-muted-foreground font-mono mb-6">page not found</p>
+      <Link to="/" className="text-sm font-mono text-primary hover:underline">
+        back to directory &rarr;
+      </Link>
+    </div>
+  ),
 });
-
-// Wrapper that gates on wallet connection before rendering
-import { useWallet } from "./providers/WalletProvider";
-
-function RequireWallet({ children }: { children: (accountId: string) => React.ReactNode }) {
-  const { accountId } = useWallet();
-  if (!accountId) {
-    return (
-      <div className="flex justify-center py-20">
-        <output className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent">
-          <span className="sr-only">Loading account...</span>
-        </output>
-      </div>
-    );
-  }
-  return <>{children(accountId)}</>;
-}
 
 interface DirectorySearch {
   tag?: string;
@@ -43,31 +35,23 @@ const indexRoute = createRoute({
   }),
 });
 
-const uploadRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/upload",
-  component: Upload,
-});
-
 const graphRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/graph/$accountId",
   component: () => {
     const { accountId } = graphRoute.useParams();
-    return <GraphView accountId={accountId} />;
+    return (
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-20">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        }
+      >
+        <LazyGraphView accountId={accountId} />
+      </Suspense>
+    );
   },
-});
-
-const explorerRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/explorer",
-  component: () => <RequireWallet>{(id) => <ExplorerView accountId={id} />}</RequireWallet>,
-});
-
-const profileEditRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/profile/edit",
-  component: () => <RequireWallet>{() => <ProfileEditor />}</RequireWallet>,
 });
 
 const profileRoute = createRoute({
@@ -94,23 +78,13 @@ const profileFollowingRoute = createRoute({
   component: () => <Connections type="following" />,
 });
 
-const playgroundRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/playground",
-  component: () => <RequireWallet>{(id) => <Playground accountId={id} />}</RequireWallet>,
-});
-
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  uploadRoute,
   graphRoute,
-  explorerRoute,
-  profileEditRoute,
   profileRoute,
   profileAccountRoute,
   profileFollowersRoute,
   profileFollowingRoute,
-  playgroundRoute,
 ]);
 
 export const router = createRouter({

@@ -106,6 +106,12 @@ const deleteFile = {
 
 ```ts
 // src/hooks/fastfs.ts
+FastfsFileContent: {
+  struct: {
+    mimeType: "string",
+    content: { array: { type: "u8" } },
+  },
+},
 SimpleFastfs: {
   struct: {
     relativePath: "string",
@@ -134,8 +140,8 @@ FastfsData: {
 
 - `src/hooks/constants.ts` — contract IDs, API URLs, protocol docs
 - `src/hooks/fastfs.ts` — Borsh schema and `encodeFfs()` function
-- `src/Upload/Upload.tsx` — file chunking and upload UI
 - `src/client/FastData.ts` — KV read methods and `buildCommit()`
+- `src/Profile/ProfileView.tsx` — avatar upload uses FastFS with Borsh encoding
 
 ## Related Repositories
 

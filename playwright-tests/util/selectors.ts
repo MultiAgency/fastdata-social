@@ -13,8 +13,3 @@ export function injectTestWallet(page: Page, accountId = "e2e-test.near") {
 		(window as unknown as Record<string, unknown>).__E2E_ACCOUNT_ID = id;
 	}, accountId);
 }
-
-/** Assert the Explorer page loaded (explore button visible). */
-export async function expectExplorerPage(page: Page) {
-	await expect(page.getByRole("button", { name: "explore_" })).toBeVisible();
-}

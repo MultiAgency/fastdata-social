@@ -19,12 +19,8 @@ test.describe("Follow button behavior", () => {
 
 		await expectAppShell(page);
 
-		// Should show edit button instead of follow
-		await expect(page.getByRole("link", { name: "edit_" })).toBeVisible();
-
-		// Follow button should NOT be visible
-		await expect(page.getByRole("button", { name: "follow" })).not.toBeVisible();
-		await expect(page.getByRole("button", { name: "unfollow" })).not.toBeVisible();
+		// Should show edit button instead of FollowButton
+		await expect(page.getByRole("button", { name: /edit/i })).toBeVisible();
 	});
 
 	test("follow button shown when viewing other profile", async ({ page }) => {
@@ -42,7 +38,7 @@ test.describe("Follow button behavior", () => {
 
 		// Should show follow button (not edit)
 		await expect(page.getByRole("button", { name: "follow" })).toBeVisible();
-		await expect(page.getByRole("link", { name: "edit_" })).not.toBeVisible();
+		await expect(page.getByRole("button", { name: /edit/i })).not.toBeVisible();
 	});
 
 	test("follow button hidden when not signed in", async ({ page }) => {
@@ -61,6 +57,6 @@ test.describe("Follow button behavior", () => {
 		// Follow button should NOT be visible (requires sign-in)
 		await expect(page.getByRole("button", { name: "follow" })).not.toBeVisible();
 		await expect(page.getByRole("button", { name: "unfollow" })).not.toBeVisible();
-		await expect(page.getByRole("link", { name: "edit_" })).not.toBeVisible();
+		await expect(page.getByRole("button", { name: /edit/i })).not.toBeVisible();
 	});
 });

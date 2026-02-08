@@ -2,21 +2,25 @@
 
 ## Overview
 
-Phased plan for E2E test coverage of fastdata-social, a NEAR wallet-gated app with four main routes (`/upload`, `/social`, `/graph`, `/explorer`).
+Phased plan for E2E test coverage of fastdata-social, a NEAR wallet-gated app with routes: `/` (Directory), `/profile`, `/profile/$accountId`, `/profile/$accountId/followers`, `/profile/$accountId/following`, `/graph/$accountId`.
 
 ## Phases
 
 ### Phase 1 — Smoke Tests (done)
-- Routes render
+- Routes render (/, /profile, /profile/$accountId, /profile/$accountId/followers, /profile/$accountId/following, /graph/$accountId)
 - No mocking, no wallet
-- 5 tests
+- 6 tests
 
 ### Phase 2 — Read-Only with API Mocking (done)
 - Intercept FastData API via `page.route()`
-- Fixture data for followers, following, social keys
+- Fixture data for followers, following, directory accounts, profiles
 - Empty state + populated state coverage
 - Wallet stub via `window.__E2E_ACCOUNT_ID`
-- 5 tests (explorer tree, connections empty/populated)
+- Tests:
+  - `directory.spec.ts` — Directory page (scan + empty state)
+  - `social-empty.spec.ts` — Connections empty state
+  - `social-followers.spec.ts` — Connections populated state
+  - `profile-view.spec.ts` — Profile view (data, counts, tags, edit controls)
 
 ### Phase 3 — Integration with Mocking (done)
 - Follow button behavior (own profile, other profile, not signed in)
@@ -24,11 +28,10 @@ Phased plan for E2E test coverage of fastdata-social, a NEAR wallet-gated app wi
 - 3 tests
 
 ### Phase 4 — Expanded Coverage (future)
-- Upload page: file selection UI, chunking progress display (mock upload endpoint)
 - Graph page: 3D visualization loads with mocked social data
-- Explorer: tree navigation, breadcrumb updates, JSON view toggle
 - API unavailable banner when `/health` returns 503
 - Error boundary rendering on API failures
+- Profile view: avatar upload, name/bio editing, tag management (in ProfileView.tsx)
 
 ### Phase 5 — Real Wallet Integration (future, optional)
 - near-sandbox for isolated blockchain state
@@ -40,12 +43,12 @@ Phased plan for E2E test coverage of fastdata-social, a NEAR wallet-gated app wi
 
 | Endpoint | Method | Used By |
 |----------|--------|---------|
-| `/health` | GET | Social (API availability check) |
-| `/v1/social/followers` | GET | Social |
-| `/v1/social/following` | GET | Social |
-| `/v1/social/keys` | POST | Explorer |
-| `/v1/social/get` | POST | Explorer |
-| `/v1/kv/query` | GET | Explorer, Graph |
+| `/health` | GET | Various (API availability check) |
+| `/v1/kv/accounts` | GET | Directory (scan mode) |
+| `/v1/kv/by-key` | GET | Directory (tag filter) |
+| `/v1/social/profile` | GET | AccountCard, ProfileView |
+| `/v1/social/followers` | GET | ProfileView, Connections |
+| `/v1/social/following` | GET | ProfileView, Connections |
 
 Production base: `https://fastdata.up.railway.app`
 Local base: `http://localhost:3001`

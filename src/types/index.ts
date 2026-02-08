@@ -20,20 +20,6 @@ export interface PartialFastfs {
 
 export type FastfsData = { simple: SimpleFastfs } | { partial: PartialFastfs };
 
-export type FileStatus = "pending" | "uploading" | "success" | "error";
-
-export interface FileToUpload {
-  status: FileStatus;
-  size: number;
-  type: string;
-  path: string;
-  numParts: number;
-  ffs: FastfsData[];
-  txIds?: (string | undefined)[];
-  uploadedParts?: number;
-  url?: string;
-}
-
 // Re-export KV types from client SDK
 export type { KvEntry as KVEntry, KvQueryResponse as KVQueryResponse } from "../client/types";
 
@@ -61,6 +47,5 @@ export interface AppConstants {
   KV_CONTRACT_ID: string;
   API_BASE_URL: string;
   EXPLORER_URL: string;
-  HUB_ACCOUNT: string;
   NETWORK: NetworkConfig;
 }

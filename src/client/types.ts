@@ -1,3 +1,10 @@
+/** Pagination metadata from the API (matches PaginatedResponse.meta). */
+export interface PaginationMeta {
+  has_more: boolean;
+  next_cursor?: string;
+  truncated?: boolean;
+}
+
 /** Configuration for FastData client. */
 export interface FastDataConfig {
   apiUrl: string;

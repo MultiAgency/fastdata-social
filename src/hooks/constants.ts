@@ -13,7 +13,6 @@ export const Constants: AppConstants = {
   // API Configuration
   API_BASE_URL: import.meta.env.PROD ? "https://fastdata.up.railway.app" : "http://localhost:3001", // KV API server
   EXPLORER_URL: "https://nearblocks.io/txns",
-  HUB_ACCOUNT: "root.near",
 
   // Network Configuration
   NETWORK: {

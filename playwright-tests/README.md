@@ -39,7 +39,8 @@ playwright-tests/
 │   ├── read-only-mocked/
 │   │   ├── social-empty.spec.ts        # [Read-only] Empty followers/following
 │   │   ├── social-followers.spec.ts    # [Read-only] Fixture follower data
-│   │   └── explorer-tree.spec.ts       # [Read-only] Explorer with mocked keys
+│   │   ├── directory.spec.ts            # [Read-only] Directory with mocked accounts
+│   │   └── profile-view.spec.ts         # [Read-only] Profile view with mocked data
 │   └── integration-mocked/
 │       └── social-follow.spec.ts       # [Integration] Follow button behavior
 └── README.md

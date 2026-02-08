@@ -14,7 +14,7 @@ Block explorer: `https://nearblocks.io/txns/{txHash}`
 
 Trace a write end-to-end:
 
-1. **Wallet** — `near.call()` submits transaction. Check browser console for errors.
+1. **Wallet** — `near.transaction().send()` submits transaction. Check browser console for errors.
 2. **NEAR RPC** — Transaction is broadcast. Look up tx hash on nearblocks.io.
 3. **Transaction succeeds** — `contextual.near` has `__fastdata_kv` defined. The receipt args are recorded on-chain.
 4. **Indexer** — Watches blocks, extracts `__fastdata_kv` args from the receipt. There may be lag (seconds to minutes).
@@ -28,7 +28,7 @@ Trace a write end-to-end:
 
 ### Failure Debugging
 
-If `near.call()` throws, it's a real failure (wallet rejected, insufficient gas, network error). These won't produce a receipt and data won't be indexed.
+If the transaction throws, it's a real failure (wallet rejected, insufficient gas, network error). These won't produce a receipt and data won't be indexed.
 
 ### Debugging with Diff and Timeline
 
@@ -77,7 +77,7 @@ The SDK throws on all API errors — it does **not** return `null` or swallow ex
 **Pattern used in components:**
 
 ```ts
-// ExplorerView.tsx, Social.tsx — wrap SDK calls in try/catch
+// ProfileView.tsx, Directory.tsx — wrap SDK calls in try/catch
 try {
   const data = await client.socialKeys([pattern], { contractId });
   setData(data);
@@ -92,12 +92,11 @@ try {
 
 | Problem | Symptom | Fix |
 |---|---|---|
-| Indexer lag | Data doesn't appear immediately after tx | Wait. App uses 3-second delayed refresh in Social.tsx |
+| Indexer lag | Data doesn't appear immediately after tx | Wait. App uses 3-second delayed refresh in ProfileView.tsx |
 | ScyllaDB timeout | API returns 500 or empty results | Check server logs. Retry. |
 | CORS | Browser console shows CORS errors | Verify API_BASE_URL matches the server's allowed origins |
-| Wallet disconnect mid-tx | Promise rejection in near.call() | Check `isConnected` before signing. Show error to user. |
-| Stale localStorage | Old following list shows after changes | App caches to `fastnear_following_{accountId}`. Clear or wait for refresh. |
-| API unreachable | `health()` returns false | App falls back to localStorage cache. Check if server is running. |
+| Wallet disconnect mid-tx | Promise rejection in transaction | Check `isConnected` before signing. Show error to user. |
+| API unreachable | `health()` returns false | Check if server is running. |
 | SDK throws on error | Unhandled promise rejection in console | Wrap all SDK calls in try/catch. Only `health()` is safe to call without try/catch. |
 
 ## Health Check
@@ -107,7 +106,7 @@ const client = useClient();
 const isHealthy = await client.health(); // GET /health
 ```
 
-The app checks health on load and shows a warning badge if the API is down. See `src/Social/Social.tsx` for the pattern.
+The app checks health on load. Components use try/catch error handling — see `src/Profile/ProfileView.tsx` for the standard pattern.
 
 ## Monitoring
 
@@ -115,20 +114,19 @@ The app checks health on load and shows a warning badge if the API is down. See 
 
 **Timeouts** — All API calls use a 10-second timeout (`AbortSignal.timeout(10_000)` in `FastData.ts`). If the server is slow, reads will fail across the entire app simultaneously.
 
-**Indexer lag** — After a write, the app refreshes data with a 3-second `setTimeout` in `Social.tsx`. If the indexer is behind, the UI will still show stale data after this refresh.
-
-**localStorage cache** — Following lists are cached at `fastnear_following_{accountId}`. This acts as a fallback when the API is unreachable. Stale cache can cause the UI to show outdated following lists until the next successful API fetch.
+**Indexer lag** — After a write, the app refreshes data with a 3-second `setTimeout` in `ProfileView.tsx`. If the indexer is behind, the UI will still show stale data after this refresh.
 
 ## Running Locally
 
 ```bash
 bun install
-bun dev          # Vite dev server
-bun test         # Run SDK unit tests
-bun run typecheck  # TypeScript strict check
-bun run lint     # Biome lint check
-bun run format   # Biome format check
-bun run build    # Full production build (tsc + vite)
+bun dev              # Vite dev server
+bun test src/client/__tests__/  # SDK unit tests (Bun native runner, must specify path)
+bun run typecheck    # TypeScript strict check
+bun run lint         # Biome lint check
+bun run format       # Biome auto-format
+bun run build        # Full production build (tsc + vite)
+bun run test:e2e     # Playwright E2E tests
 ```
 
 The app expects a fastkv-server running at `localhost:3001` for development.

@@ -6,7 +6,8 @@ Two protocols share the same indexing infrastructure but use different contracts
 
 ```
 KV (social data):
-  SDK builds JSON args → near.call("contextual.near", "__fastdata_kv", args, "10 Tgas")
+  SDK builds JSON args → near.transaction(signerId)
+    .functionCall("contextual.near", "__fastdata_kv", args, { gas: "10 Tgas" }).send()
       ↓
   NEAR RPC → contextual.near (tx succeeds, method is minimal)
       ↓
@@ -15,13 +16,14 @@ KV (social data):
   fastkv-server REST API → SDK reads → React app
 
 FastFS (file storage):
-  Borsh-encode file data → near.call("fastfs.near", "__fastdata_fastfs", encoded, "1 Tgas")
+  Borsh-encode file data → near.transaction(signerId)
+    .functionCall("fastfs.near", "__fastdata_fastfs", encoded, { gas: "10 Tgas" }).send()
       ↓
   Same indexer pipeline → fastfs-server serves files at
   https://{accountId}.fastfs.io/fastfs.near/{path}
 ```
 
-`near.call()` comes from near-kit via the `useNear()` hook. See `docs/skills/near-kit.md`.
+`near` comes from `useWallet().near`. See `docs/skills/near-kit.md`.
 For protocol details (why transactions "fail", what the indexer does), see `docs/skills/fastdata.md`.
 
 ## Application Initialization
@@ -39,16 +41,12 @@ src/main.tsx
 
 | Path | Component | Requires Wallet | Purpose |
 |---|---|---|---|
-| `/` | — | No | Redirects to `/playground` |
-| `/playground` | `Playground` | Yes | Transaction builder and tester |
-| `/upload` | `Upload` | No | FastFS file upload |
-| `/social` | `Social` | No | Follow/unfollow management |
-| `/graph` | `GraphView` | Yes | 3D social graph visualization |
-| `/explorer` | `ExplorerView` | Yes | On-chain KV data browser |
-| `/profile` | `ProfilePage` | No | Own profile editor (signed in) or sign-in prompt |
-| `/profile/$accountId` | `ProfilePage` | No | Read-only profile view for any account |
-
-Routes requiring wallet use `RequireWallet` — a render-prop component that shows a spinner until connected, then passes `accountId`.
+| `/` | `Directory` | No | Account directory with tag filtering and pagination |
+| `/graph/$accountId` | `GraphView` | No | 3D social graph visualization |
+| `/profile` | `ProfilePage` | No | Own profile (edit mode if signed in, sign-in prompt otherwise) |
+| `/profile/$accountId` | `ProfilePage` | No | View any account's profile, follow/unfollow |
+| `/profile/$accountId/followers` | `Connections` | No | Paginated followers list |
+| `/profile/$accountId/following` | `Connections` | No | Paginated following list |
 
 ## API Server
 
@@ -103,7 +101,7 @@ src/
     utils.ts             extractMentions(), extractHashtags()
     constants.ts         DEFAULT_CONTRACT_ID, DEFAULT_GAS, TIMEOUT_MS
     types.ts             All SDK interfaces
-    index.ts             Re-exports everything from builders, utils, types + classes
+    index.ts             Re-exports builders, FastData, Social, types, utils (not constants)
     __tests__/           FastData.test.ts, builders.test.ts, utils.test.ts
 
   hooks/
@@ -118,52 +116,37 @@ src/
     Header.tsx           App header with logo + nav links (desktop inline, mobile hamburger)
     SignIn/              AccountNavbar, SignInNavbar, SignedInNavbar
 
+  Directory/
+    Directory.tsx        Account directory with multi-contract scan, tag filtering, cursor pagination
+
   Social/
-    Social.tsx           Follow/unfollow UI with optimistic updates
     GraphView.tsx        3D force-directed graph (react-force-graph-3d)
     AccountList.tsx      Follower/following list with account formatting
     TransactionAlert.tsx Transaction feedback ("failed" tx explanation)
-    Explorer/
-      ExplorerView.tsx   Tree/JSON modes, search, quick paths
-      TreeNode.tsx       Recursive tree with lazy-loaded children
-      ValueDetail.tsx    Side panel: KV metadata (block height, tx hash, writer)
-      Breadcrumb.tsx     Path navigation
-      JsonView.tsx       Raw JSON display
 
   Profile/
-    ProfilePage.tsx      Route wrapper: editor (own) or view (other) or sign-in prompt
-    ProfileEditor.tsx    Edit form with live preview, KV commit, tx feedback
-    ProfileView.tsx      Read-only profile card with avatar, bio, tags, linktree
+    ProfilePage.tsx      Route wrapper: own profile (edit) or other (view) or sign-in prompt
+    ProfileView.tsx      Full profile with inline editing, avatar upload, follow/unfollow, tabs
+    Connections.tsx      Paginated followers/following lists with unfollow on own profile
 
-  Upload/
-    Upload.tsx           FastFS drag-and-drop upload with chunking
-
-  Playground/
-    Playground.tsx       Transaction builder for all social actions + custom KV
-
-  components/ui/         shadcn/ui: Alert, Badge, Button, Input, Tabs
-  types/                 App-level types: FastFS structs, AppConstants, NetworkConfig
+  components/
+    AccountCard.tsx      Profile cards for directory listing
+    FollowButton.tsx     Reusable follow/unfollow button
+    ProfileHeader.tsx    Avatar + name display component
+    TagBadge.tsx         Clickable tag badges
+    ui/                  shadcn/ui: Alert, Badge, Button, Input, Tabs
+  types/
+    index.ts             App-level types: AppConstants, NetworkConfig, FastFS types (FastfsData, SimpleFastfs, etc.), Transaction types
+    borsh.ts             BorshFieldType, BorshSchema, BorshSchemaDefinition
   utils/
     validation.ts        isValidNearAccount(), formatAccountId(), getTxExplorerUrl()
   lib/
     utils.ts             cn() — clsx + tailwind-merge
 ```
 
-## Explorer
-
-The data explorer (`/explorer`) lets users browse on-chain KV data:
-
-- **Search**: Enter glob patterns like `alice.near/profile/**`
-- **Quick paths**: Preset buttons for `profile`, `graph`, `index`
-- **Tree mode**: `socialKeys()` fetches key structure, child nodes lazy-load on expand via `socialGet()`
-- **JSON mode**: Full tree as raw JSON
-- **Value detail**: Click any leaf to see metadata (block height, timestamp, tx hash, writer account)
-- **Breadcrumb**: Navigate path segments (`account / profile / name`)
-- **Contract switching**: Query different contract namespaces
-
 ## Graph Visualization
 
-The 3D graph (`/graph`) visualizes the social network:
+The 3D graph (`/graph/$accountId`) visualizes the social network:
 
 - **Library**: `react-force-graph-3d`
 - **Node cap**: 200 nodes maximum
@@ -176,11 +159,10 @@ The 3D graph (`/graph`) visualizes the social network:
 | Package | Purpose |
 |---|---|
 | `near-kit` | NEAR SDK: `Near` class, `fromHotConnect`, transaction signing |
-| `@near-kit/react` | `NearProvider`, `useNear()` hook |
+| `@near-kit/react` | `NearProvider` wrapper + hooks (app uses custom `useWallet()` instead) |
 | `@hot-labs/near-connect` | HOT wallet connector |
 | `@tanstack/react-router` | Client-side routing |
 | `react-force-graph-3d` | 3D graph visualization |
-| `react-files` | Drag-and-drop file upload |
 | `borsh` | Binary serialization for FastFS |
 | `@radix-ui/*` | Headless UI primitives (foundation for shadcn/ui) |
 
@@ -193,6 +175,6 @@ For styling dependencies, see `docs/skills/design-system.md`.
 - `src/client/builders.ts` — pure functions that build KV args for all social actions
 - `src/client/types.ts` — all SDK TypeScript interfaces
 - `src/hooks/constants.ts` — two contract IDs (`contextual.near` for KV, `fastfs.near` for files), API URLs
-- `src/router.tsx` — route definitions with `RequireWallet` gate
+- `src/router.tsx` — route definitions (all routes handle auth internally via `useWallet()`)
 - `src/providers/WalletProvider.tsx` — wallet connection lifecycle and signing context
 - `src/utils/validation.ts` — NEAR account validation, display formatting, explorer URLs

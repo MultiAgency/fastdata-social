@@ -6,6 +6,7 @@ import type {
   KvBatchResult,
   KvDiffResponse,
   KvEntry,
+  PaginationMeta,
   SocialTree,
 } from "./types";
 
@@ -157,16 +158,25 @@ export class FastData {
 
   /** GET /v1/kv/accounts */
   async kvAccounts(
-    currentAccountId: string,
-    key: string,
-    opts?: { limit?: number; offset?: number; excludeNull?: boolean },
-  ): Promise<string[]> {
-    const params = new URLSearchParams({ current_account_id: currentAccountId, key });
+    contractId?: string,
+    key?: string,
+    opts?: {
+      limit?: number;
+      offset?: number;
+      excludeNull?: boolean;
+      afterAccount?: string;
+      scan?: boolean;
+    },
+  ): Promise<{ data: string[]; meta: PaginationMeta }> {
+    const params = new URLSearchParams();
+    if (contractId) params.set("contractId", contractId);
+    if (key) params.set("key", key);
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));
     if (opts?.excludeNull) params.set("exclude_null", "true");
-    const data = await this.fetchJson<{ accounts: string[] }>(`/v1/kv/accounts?${params}`);
-    return data.accounts ?? [];
+    if (opts?.afterAccount) params.set("after_account", opts.afterAccount);
+    if (opts?.scan) params.set("scan", "1");
+    return this.fetchJson<{ data: string[]; meta: PaginationMeta }>(`/v1/kv/accounts?${params}`);
   }
 
   /** GET /v1/kv/diff */

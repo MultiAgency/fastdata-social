@@ -10,7 +10,7 @@ Follow this pattern used by every existing feature (follow, post, like, comment)
 export function buildMyFeatureArgs(
   signerId: string,
   input: MyInput
-): Record<string, string | null> {
+): Record<string, string> {
   requireNonEmpty(signerId, "signerId");
   const a: Record<string, string> = {};
   a["some/key"] = JSON.stringify({ ... });
@@ -24,7 +24,7 @@ export function buildMyFeatureArgs(
 
 Conventions:
 - First param is `signerId` — embed it as `accountId` in notification index values so recipients know who performed the action. Use `_signerId` prefix only if the builder generates no notifications.
-- Return `Record<string, string | null>` — null values mean deletion
+- Return `Record<string, string>` for most builders. Use `Record<string, string | null>` only for deletion builders (e.g., unfollow, unlike) where a key is set to `null`
 - Use `JSON.stringify()` for complex values
 - Omit keys for undefined/empty fields (don't set them to empty string unless that's the convention)
 - Add `index/*` keys for anything that needs to be queried later
@@ -103,48 +103,32 @@ describe("buildMyFeatureArgs", () => {
 });
 ```
 
-Run with `bun test`.
+Run with `bun test src/client/__tests__/` (Bun native runner — must specify path to avoid discovering Playwright files).
 
 ### 5. Wire up in a React component
 
 ```tsx
 import { useClient } from "../hooks/useClient";
-import { useNear } from "@near-kit/react";
 import { useWallet } from "../providers/WalletProvider";
 import { isValidNearAccount } from "../utils/validation";
 
 export function MyFeature({ accountId }: { accountId: string }) {
   const client = useClient();
-  const near = useNear();
+  const { near } = useWallet();
 
   // Separate states for reads vs writes
   const [loading, setLoading] = useState(false);
   const [transacting, setTransacting] = useState(false);
   const [data, setData] = useState<MyData[]>([]);
 
-  // --- Data loading with localStorage fallback ---
-  const CACHE_KEY = `fastnear_mydata_${accountId}`;
-
+  // --- Data loading with try/catch ---
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const isHealthy = await client.health();
-      if (isHealthy) {
-        const result = await client.getMyData(accountId);
-        setData(result);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(result));
-      } else {
-        // Fallback to localStorage
-        const stored = localStorage.getItem(CACHE_KEY);
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) setData(parsed);
-          } catch {
-            localStorage.removeItem(CACHE_KEY);
-          }
-        }
-      }
+      const result = await client.getMyData(accountId);
+      setData(result);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -157,11 +141,13 @@ export function MyFeature({ accountId }: { accountId: string }) {
     setTransacting(true);
     try {
       const tx = client.buildMyFeature(accountId, input);
-      await near.call(tx.contractId, tx.methodName, tx.args, tx.gas);
+      await near
+        .transaction(accountId)
+        .functionCall(tx.contractId, tx.methodName, tx.args, { gas: "10 Tgas" })
+        .send();
 
       // Optimistic update: change local state immediately
       setData(prev => [...prev, newItem]);
-      localStorage.setItem(CACHE_KEY, JSON.stringify([...data, newItem]));
     } catch (err) {
       console.error(err);
     } finally {
@@ -183,8 +169,7 @@ export function MyFeature({ accountId }: { accountId: string }) {
 
 Key patterns:
 - **`loading`** for data fetches, **`transacting`** for blockchain writes — disable different UI elements
-- **Optimistic updates**: update state + localStorage immediately after `near.call()`, then re-fetch after 3 seconds to get the indexed result
-- **Health check fallback**: `client.health()` → API fetch → localStorage if API down
+- **Optimistic updates**: update local state immediately after `near.transaction().send()`, then re-fetch after 3 seconds to get the indexed result
 - **`useCallback`** for handlers with proper dependency arrays
 
 ### 6. Input validation
@@ -212,7 +197,7 @@ Use `TransactionAlert` from `src/Social/TransactionAlert.tsx`:
 ```tsx
 const [lastTx, setLastTx] = useState<Transaction | null>(null);
 
-// After near.call():
+// After transaction:
 setLastTx({ type: "myaction", account: target, txId: result?.transaction?.hash || null, status: "success" });
 
 // On error:
@@ -223,35 +208,6 @@ setLastTx({ type: "myaction", account: target, txId: null, status: "error", erro
 ```
 
 Note: `error: true` means the transaction failed (wallet rejected, insufficient gas, network error). The alert shows the failure to the user.
-
-### 8. Add to Playground for testing
-
-Add a section in `src/Playground/Playground.tsx`. Follow the existing card pattern:
-
-```tsx
-// Use useMemo for live JSON preview of builder args
-const myArgs = useMemo(() => {
-  return buildMyFeatureArgs(accountId, {
-    field: myField || undefined,  // || undefined to omit empty strings
-  });
-}, [accountId, myField]);
-
-// Card UI
-<div className="p-5 rounded-xl border border-border bg-card/50">
-  <CardHeader title="my feature_" endpoints="→ myfeature/*" />
-  <Input value={myField} onChange={e => setMyField(e.target.value)} placeholder="..." />
-  <Button
-    onClick={() => commitKv(myArgs, "myfeature")}
-    disabled={transacting || Object.keys(myArgs).length === 0}
-    className="glow-primary font-mono"
-  >
-    {activeLabel === "myfeature" ? "submitting..." : "Submit"}
-  </Button>
-  <JsonPreview args={myArgs} />
-</div>
-```
-
-The playground uses a single `commitKv(args, label)` helper for all sections — it submits the tx, logs it to the transaction history (last 20 entries), and manages the `transacting`/`activeLabel` state.
 
 ## Adding a New Route
 
@@ -267,17 +223,9 @@ export function MyPage({ accountId }: { accountId: string }) {
 
 ### 2. Add route in `src/router.tsx`
 
-Two patterns depending on whether the component needs `accountId`:
+All routes handle auth internally via `useWallet()`:
 
 ```tsx
-// Pattern A: Requires wallet — component receives accountId as prop
-const myRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/mypage",
-  component: () => <RequireWallet>{(id) => <MyPage accountId={id} />}</RequireWallet>,
-});
-
-// Pattern B: Handles auth internally — component uses useWallet() directly
 const myRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/mypage",
@@ -285,7 +233,7 @@ const myRoute = createRoute({
 });
 ```
 
-Use pattern A (RequireWallet) when the component can't render at all without an account. Use pattern B when the component can show a partial UI or handles its own auth state (like Social.tsx and Upload.tsx).
+Components use `useWallet()` to check auth state and show appropriate UI (sign-in prompt, view-only, or full edit mode). See `Directory.tsx` and `ProfilePage.tsx` for examples.
 
 Add to route tree:
 ```tsx
@@ -298,7 +246,7 @@ const routeTree = rootRoute.addChildren([
 ### 3. Add nav link in `src/Header/Header.tsx`
 
 ```tsx
-const navLinks = [
+const primaryLinks = [
   // ...existing links,
   { to: "/mypage" as const, label: "MyPage" },
 ];
@@ -309,5 +257,4 @@ Navigation lives in the Header component. Links render inline on desktop, in a h
 ### 4. Hooks available in components
 
 - `useClient()` — returns `Social` SDK instance (reads + write builders)
-- `useNear()` — from `@near-kit/react`, returns the `near` instance directly for `near.call()` or `near.transaction().send()`
-- `useWallet()` — returns `{ accountId, isConnected, isInitializing, connectWallet, disconnectWallet, error, clearError }`
+- `useWallet()` — returns `{ accountId, near, isConnected, isInitializing, connectWallet, disconnectWallet, error, clearError }`. Use `near` for `near.transaction(signerId).functionCall(...).send()`
