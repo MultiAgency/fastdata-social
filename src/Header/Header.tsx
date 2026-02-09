@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useWallet } from "../providers/WalletProvider";
 import { AccountNavbar } from "./SignIn/AccountNavbar";
 
-const primaryLinks = [{ to: "/" as const, label: "Directory" }];
+const primaryLinks: { to: string; label: string }[] = [];
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -19,10 +19,11 @@ export function Header() {
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-2xl">
       <div className="flex h-14 sm:h-16 items-center px-4 sm:px-6 max-w-7xl mx-auto">
         {/* Logo */}
-        <Link to="/" className="flex items-center mr-4 sm:mr-6 shrink-0 group">
-          <span className="text-base sm:text-lg font-semibold tracking-tight font-mono">
+        <Link to="/" className="flex items-center gap-[3px] mr-4 sm:mr-6 shrink-0 group">
+          <img src="/logo.png" alt="" className="w-9 h-9 sm:w-10 sm:h-10" />
+          <span className="text-base sm:text-lg font-semibold tracking-tight">
             <span className="text-primary group-hover:drop-shadow-[0_0_8px_oklch(0.82_0.19_155_/_40%)] transition-[filter] duration-300">
-              __fastdata_
+              NEAR Directory
             </span>
           </span>
         </Link>
@@ -43,7 +44,7 @@ export function Header() {
                 {active && (
                   <span className="absolute inset-0 rounded-lg bg-primary/10 border border-primary/20" />
                 )}
-                <span className="relative">{link.label.toLowerCase()}_</span>
+                <span className="relative">{link.label}</span>
               </Link>
             );
           })}
@@ -112,7 +113,7 @@ export function Header() {
                   }`}
                 >
                   {active && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-                  {link.label.toLowerCase()}_
+                  {link.label}
                 </Link>
               );
             })}

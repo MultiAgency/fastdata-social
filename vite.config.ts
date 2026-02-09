@@ -13,4 +13,14 @@ export default defineConfig({
       buffer: "buffer",
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          router: ["@tanstack/react-router"],
+          near: ["near-kit", "@near-kit/react", "@hot-labs/near-connect"],
+        },
+      },
+    },
+  },
 });

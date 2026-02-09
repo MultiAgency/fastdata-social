@@ -25,6 +25,8 @@ interface GraphData {
 }
 
 const NODE_CAP = 200;
+const LINK_CAP = 1000;
+const EXPAND_LIMIT = 50;
 const ROOT_COLOR = "#f59e0b";
 const NODE_COLOR = "#00ff87";
 const FOLLOWING_EDGE_COLOR = "#00ff87";
@@ -61,8 +63,8 @@ function GraphViewInner({ accountId }: GraphViewProps) {
       setLoading(true);
       try {
         const [followingRes, followersRes] = await Promise.all([
-          client.getFollowing(nodeId),
-          client.getFollowers(nodeId),
+          client.getFollowing(nodeId, { limit: EXPAND_LIMIT }),
+          client.getFollowers(nodeId, { limit: EXPAND_LIMIT }),
         ]);
         const following = followingRes.accounts;
         const followers = followersRes.accounts;
@@ -85,19 +87,25 @@ function GraphViewInner({ accountId }: GraphViewProps) {
           }
 
           for (const f of following) {
-            if (!nodeIdsRef.current.has(f)) {
+            if (newLinks.length >= LINK_CAP) break;
+            if (!nodeIdsRef.current.has(f) && nodeIdsRef.current.size < NODE_CAP) {
               newNodes.push({ id: f, color: NODE_COLOR, val: 2 });
               nodeIdsRef.current.add(f);
             }
-            newLinks.push({ source: nodeId, target: f, color: FOLLOWING_EDGE_COLOR });
+            if (nodeIdsRef.current.has(f)) {
+              newLinks.push({ source: nodeId, target: f, color: FOLLOWING_EDGE_COLOR });
+            }
           }
 
           for (const f of followers) {
-            if (!nodeIdsRef.current.has(f)) {
+            if (newLinks.length >= LINK_CAP) break;
+            if (!nodeIdsRef.current.has(f) && nodeIdsRef.current.size < NODE_CAP) {
               newNodes.push({ id: f, color: NODE_COLOR, val: 2 });
               nodeIdsRef.current.add(f);
             }
-            newLinks.push({ source: f, target: nodeId, color: FOLLOWER_EDGE_COLOR });
+            if (nodeIdsRef.current.has(f)) {
+              newLinks.push({ source: f, target: nodeId, color: FOLLOWER_EDGE_COLOR });
+            }
           }
 
           return { nodes: newNodes, links: newLinks };

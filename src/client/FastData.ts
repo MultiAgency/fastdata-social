@@ -50,8 +50,8 @@ export class FastData {
     fields?: string;
   }): Promise<KvEntry | null> {
     const params = new URLSearchParams({
-      predecessor_id: opts.predecessorId,
-      current_account_id: opts.currentAccountId,
+      accountId: opts.predecessorId,
+      contractId: opts.currentAccountId,
       key: opts.key,
     });
     if (opts.fields) params.set("fields", opts.fields);
@@ -70,8 +70,8 @@ export class FastData {
     format?: string;
   }): Promise<KvEntry[]> {
     const params = new URLSearchParams({
-      predecessor_id: opts.predecessorId,
-      current_account_id: opts.currentAccountId,
+      accountId: opts.predecessorId,
+      contractId: opts.currentAccountId,
     });
     if (opts.keyPrefix) params.set("key_prefix", opts.keyPrefix);
     if (opts.limit != null) params.set("limit", String(opts.limit));
@@ -97,8 +97,8 @@ export class FastData {
     },
   ): Promise<KvEntry[]> {
     const params = new URLSearchParams({
-      predecessor_id: predecessorId,
-      current_account_id: currentAccountId,
+      accountId: predecessorId,
+      contractId: currentAccountId,
       key,
     });
     if (opts?.limit != null) params.set("limit", String(opts.limit));
@@ -116,7 +116,7 @@ export class FastData {
     key: string,
     opts?: { limit?: number; offset?: number; excludeNull?: boolean; fields?: string },
   ): Promise<KvEntry[]> {
-    const params = new URLSearchParams({ current_account_id: currentAccountId, key });
+    const params = new URLSearchParams({ contractId: currentAccountId, key });
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));
     if (opts?.excludeNull) params.set("exclude_null", "true");
@@ -131,7 +131,7 @@ export class FastData {
     opts?: { currentAccountId?: string; limit?: number; offset?: number; fields?: string },
   ): Promise<KvEntry[]> {
     const params = new URLSearchParams({ key });
-    if (opts?.currentAccountId) params.set("current_account_id", opts.currentAccountId);
+    if (opts?.currentAccountId) params.set("contractId", opts.currentAccountId);
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));
     if (opts?.fields) params.set("fields", opts.fields);
@@ -148,8 +148,8 @@ export class FastData {
     const data = await this.fetchJson<{ results: KvBatchResult[] }>("/v1/kv/batch", {
       method: "POST",
       body: JSON.stringify({
-        predecessor_id: predecessorId,
-        current_account_id: currentAccountId,
+        accountId: predecessorId,
+        contractId: currentAccountId,
         keys,
       }),
     });
@@ -189,8 +189,8 @@ export class FastData {
     opts?: { fields?: string },
   ): Promise<KvDiffResponse> {
     const params = new URLSearchParams({
-      predecessor_id: predecessorId,
-      current_account_id: currentAccountId,
+      accountId: predecessorId,
+      contractId: currentAccountId,
       key,
       block_height_a: String(blockHeightA),
       block_height_b: String(blockHeightB),
@@ -213,8 +213,8 @@ export class FastData {
     },
   ): Promise<KvEntry[]> {
     const params = new URLSearchParams({
-      predecessor_id: predecessorId,
-      current_account_id: currentAccountId,
+      accountId: predecessorId,
+      contractId: currentAccountId,
     });
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));

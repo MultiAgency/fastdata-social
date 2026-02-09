@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import type { Profile } from "../client/types";
 import { useClient } from "../hooks/useClient";
 import { FollowButton } from "./FollowButton";
@@ -8,27 +8,37 @@ import { TagBadge } from "./TagBadge";
 
 interface AccountCardProps {
   accountId: string;
+  /** Pre-fetched profile. When omitted the card fetches its own. */
+  profile?: Profile | null;
   isFollowing?: boolean;
   onFollowToggle?: (accountId: string, nowFollowing: boolean) => void;
 }
 
-export function AccountCard({ accountId, isFollowing = false, onFollowToggle }: AccountCardProps) {
+export const AccountCard = memo(function AccountCard({
+  accountId,
+  profile: profileProp,
+  isFollowing = false,
+  onFollowToggle,
+}: AccountCardProps) {
   const client = useClient();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [fetched, setFetched] = useState<Profile | null>(null);
 
+  // Only fetch when no profile prop is provided (backward-compat path)
   useEffect(() => {
+    if (profileProp !== undefined) return;
     let cancelled = false;
     client
       .getProfile(accountId)
       .then((p) => {
-        if (!cancelled && p && Object.keys(p).length > 0) setProfile(p);
+        if (!cancelled && p && Object.keys(p).length > 0) setFetched(p);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [accountId, client]);
+  }, [accountId, client, profileProp]);
 
+  const profile = profileProp !== undefined ? profileProp : fetched;
   const tags = profile?.tags ? Object.keys(profile.tags) : [];
   const about = profile?.about ?? profile?.description;
 
@@ -61,4 +71,4 @@ export function AccountCard({ accountId, isFollowing = false, onFollowToggle }: 
       )}
     </div>
   );
-}
+});

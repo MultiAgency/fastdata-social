@@ -23,6 +23,8 @@ export function ProfileHeader({ accountId, name, imageUrl, size = "lg" }: Profil
         <img
           src={imageUrl}
           alt={name ?? accountId}
+          loading="lazy"
+          decoding="async"
           className={`${avatarSize} ${avatarRound} object-cover ${avatarBorder}`}
           onError={() => setImgError(true)}
         />

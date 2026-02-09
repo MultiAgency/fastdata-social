@@ -96,18 +96,15 @@ export function ProfileView({ accountId }: ProfileViewProps) {
   const [pendingAccount, setPendingAccount] = useState("");
   const [validationError, setValidationError] = useState("");
 
+  const isOwn = signedInAccount === accountId;
+
+  // Load profile + isFollowing check. Counts come from loadSocialData below.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setEmpty(false);
 
     const profileP = client.getProfile(accountId);
-    const followersP = client
-      .getFollowers(accountId, { limit: 1 })
-      .catch(() => ({ accounts: [], count: 0 }));
-    const followingP = client
-      .getFollowing(accountId, { limit: 1 })
-      .catch(() => ({ accounts: [], count: 0 }));
     const isFollowingP = signedInAccount
       ? client
           .kvGet({
@@ -119,16 +116,14 @@ export function ProfileView({ accountId }: ProfileViewProps) {
           .catch(() => false)
       : Promise.resolve(false);
 
-    Promise.all([profileP, followersP, followingP, isFollowingP])
-      .then(([p, followers, following, follows]) => {
+    Promise.all([profileP, isFollowingP])
+      .then(([p, follows]) => {
         if (cancelled) return;
         if (!p || Object.keys(p).length === 0) {
           setEmpty(true);
         } else {
           setProfile(p);
         }
-        setFollowerCount(followers.count);
-        setFollowingCount(following.count);
         setIsFollowing(follows as boolean);
         setLoading(false);
       })
@@ -142,8 +137,6 @@ export function ProfileView({ accountId }: ProfileViewProps) {
       cancelled = true;
     };
   }, [accountId, client, signedInAccount]);
-
-  const isOwn = signedInAccount === accountId;
 
   // Populate edit fields when entering edit mode
   const enterEditMode = useCallback(() => {
@@ -236,6 +229,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
       const hash = result?.transaction?.hash as string | undefined;
       if (hash) {
         setEditTxHash(hash);
+        client.invalidateProfile(accountId);
         // Update local profile state so the view reflects changes immediately
         setProfile((prev) =>
           prev
@@ -269,27 +263,36 @@ export function ProfileView({ accountId }: ProfileViewProps) {
     } finally {
       setCommitting(false);
     }
-  }, [near, signedInAccount, kvArgs, editName, editImageUrl, editAbout, editTags]);
+  }, [
+    near,
+    signedInAccount,
+    kvArgs,
+    editName,
+    editImageUrl,
+    editAbout,
+    editTags,
+    accountId,
+    client,
+  ]);
 
-  // Load full following/followers lists for own profile
+  // Load full following/followers lists for the viewed profile
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   const loadSocialData = useCallback(async () => {
-    if (!signedInAccount || !isOwn) return;
     setSocialLoading(true);
     try {
       const [followingRes, followersRes] = await Promise.all([
-        client.getFollowing(signedInAccount),
-        client.getFollowers(signedInAccount),
+        client.getFollowing(accountId),
+        client.getFollowers(accountId),
       ]);
       setFollowingList(followingRes.accounts);
       setFollowersList(followersRes.accounts);
       setFollowingCount(followingRes.count);
       setFollowerCount(followersRes.count);
     } catch {
-      // counts already set from initial load
+      // silent — counts remain at 0
     }
     setSocialLoading(false);
-  }, [signedInAccount, isOwn]);
+  }, [accountId]);
 
   useEffect(() => {
     loadSocialData();
@@ -345,7 +348,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         setFollowingCount((c) => c + 1);
         setLastTx({ type: "follow", account: targetAccount, txId, status: "success" });
         setPendingAccount("");
-        timeoutRefs.current.push(setTimeout(loadSocialData, 3000));
+        client.invalidateFollows(accountId);
       } catch {
         setLastTx({
           type: "follow",
@@ -355,12 +358,12 @@ export function ProfileView({ accountId }: ProfileViewProps) {
           error: true,
         });
         setPendingAccount("");
-        timeoutRefs.current.push(setTimeout(loadSocialData, 3000));
+        client.invalidateFollows(accountId);
       } finally {
         setTransacting(false);
       }
     },
-    [followingList, signedInAccount, near, validateAccount, loadSocialData],
+    [followingList, signedInAccount, near, validateAccount, accountId, client],
   );
 
   const handleUnfollow = useCallback(
@@ -378,7 +381,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         setFollowingList((prev) => prev.filter((id) => id !== targetAccount));
         setFollowingCount((c) => c - 1);
         setLastTx({ type: "unfollow", account: targetAccount, txId, status: "success" });
-        timeoutRefs.current.push(setTimeout(loadSocialData, 3000));
+        client.invalidateFollows(accountId);
       } catch {
         setLastTx({
           type: "unfollow",
@@ -387,12 +390,12 @@ export function ProfileView({ accountId }: ProfileViewProps) {
           status: "error",
           error: true,
         });
-        timeoutRefs.current.push(setTimeout(loadSocialData, 3000));
+        client.invalidateFollows(accountId);
       } finally {
         setTransacting(false);
       }
     },
-    [signedInAccount, near, loadSocialData],
+    [signedInAccount, near, accountId, client],
   );
 
   if (loading) {
@@ -531,6 +534,8 @@ export function ProfileView({ accountId }: ProfileViewProps) {
                 <img
                   src={imageUrl}
                   alt={name ?? accountId}
+                  loading="lazy"
+                  decoding="async"
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-[3px] border-background shadow-lg shadow-black/20 ring-1 ring-border/50"
                   onError={() => setImgError(true)}
                 />
@@ -717,87 +722,85 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         </div>
       </div>
 
-      {/* Own profile: follow input + following/followers tabs */}
-      {isOwn && !editing && (
-        <div className="space-y-4">
-          <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
+      {/* Follow management + following/followers tabs */}
+      <div className="space-y-4">
+        <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
 
-          {/* Follow input card */}
-          <div className="p-4 sm:p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
-            <label
-              htmlFor="follow-input"
-              className="text-xs font-medium text-muted-foreground mb-2.5 block font-mono uppercase tracking-wider"
+        {/* Follow input card */}
+        <div className="p-4 sm:p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+          <label
+            htmlFor="follow-input"
+            className="text-xs font-medium text-muted-foreground mb-2.5 block font-mono uppercase tracking-wider"
+          >
+            follow account
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="follow-input"
+              placeholder="alice.near"
+              value={pendingAccount}
+              onChange={(e) => {
+                setPendingAccount(e.target.value);
+                setValidationError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleFollow(pendingAccount);
+              }}
+              disabled={transacting}
+              className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
+            />
+            <Button
+              onClick={() => handleFollow(pendingAccount)}
+              disabled={transacting || !pendingAccount}
+              className="font-mono rounded-lg h-10 px-5 shrink-0"
             >
-              follow account
-            </label>
-            <div className="flex gap-2">
-              <Input
-                id="follow-input"
-                placeholder="alice.near"
-                value={pendingAccount}
-                onChange={(e) => {
-                  setPendingAccount(e.target.value);
-                  setValidationError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleFollow(pendingAccount);
-                }}
-                disabled={transacting}
-                className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
-              />
-              <Button
-                onClick={() => handleFollow(pendingAccount)}
-                disabled={transacting || !pendingAccount}
-                className="font-mono rounded-lg h-10 px-5 shrink-0"
-              >
-                {transacting ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                ) : (
-                  "follow_"
-                )}
-              </Button>
-            </div>
-            {validationError && (
-              <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
-            )}
+              {transacting ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                "follow_"
+              )}
+            </Button>
           </div>
-
-          {/* Tabs */}
-          <Tabs defaultValue="following">
-            <TabsList className="bg-secondary/30 border border-border/40 rounded-xl p-1 h-auto">
-              <TabsTrigger
-                value="following"
-                className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                following ({followingList.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="followers"
-                className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                followers ({followersList.length})
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="following" className="mt-3">
-              <AccountList
-                accounts={followingList}
-                onUnfollow={handleUnfollow}
-                disabled={transacting}
-                type="following"
-                loading={socialLoading}
-              />
-            </TabsContent>
-            <TabsContent value="followers" className="mt-3">
-              <AccountList
-                accounts={followersList}
-                disabled={transacting}
-                type="followers"
-                loading={socialLoading}
-              />
-            </TabsContent>
-          </Tabs>
+          {validationError && (
+            <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
+          )}
         </div>
-      )}
+
+        {/* Tabs — visible for all profiles */}
+        <Tabs defaultValue="following">
+          <TabsList className="bg-secondary/30 border border-border/40 rounded-xl p-1 h-auto">
+            <TabsTrigger
+              value="following"
+              className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              following ({followingList.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="followers"
+              className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              followers ({followersList.length})
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="following" className="mt-3">
+            <AccountList
+              accounts={followingList}
+              onUnfollow={handleUnfollow}
+              disabled={transacting}
+              type="following"
+              loading={socialLoading}
+            />
+          </TabsContent>
+          <TabsContent value="followers" className="mt-3">
+            <AccountList
+              accounts={followersList}
+              disabled={transacting}
+              type="followers"
+              loading={socialLoading}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

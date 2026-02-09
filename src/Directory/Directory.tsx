@@ -1,11 +1,37 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { Profile } from "../client/types";
 import { AccountCard } from "../components/AccountCard";
 import { useClient } from "../hooks/useClient";
 import { useWallet } from "../providers/WalletProvider";
 
 const PAGE_SIZE = 24;
+
+/** Responsive column count based on container width. */
+function useColumnCount(ref: React.RefObject<HTMLDivElement | null>) {
+  const [cols, setCols] = useState(() =>
+    typeof window === "undefined"
+      ? 1
+      : window.innerWidth >= 1024
+        ? 3
+        : window.innerWidth >= 640
+          ? 2
+          : 1,
+  );
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0].contentRect.width;
+      setCols(w >= 1024 ? 3 : w >= 640 ? 2 : 1);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return cols;
+}
 
 export function Directory() {
   const client = useClient();
@@ -14,6 +40,7 @@ export function Directory() {
   const { tag } = useSearch({ from: "/" });
 
   const [accounts, setAccounts] = useState<string[]>([]);
+  const [profiles, setProfiles] = useState<Map<string, Profile | null>>(new Map());
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -21,14 +48,29 @@ export function Directory() {
   const [hasMore, setHasMore] = useState(false);
   const activeTag = tag ?? "";
   const prevTagRef = useRef(activeTag);
+  const fetchedProfilesRef = useRef(new Set<string>());
+
+  // Virtual scrolling
+  const gridRef = useRef<HTMLDivElement>(null);
+  const cols = useColumnCount(gridRef);
+  const rowCount = Math.ceil(accounts.length / cols);
+
+  const virtualizer = useWindowVirtualizer({
+    count: rowCount,
+    estimateSize: () => 160,
+    overscan: 5,
+    scrollMargin: gridRef.current?.offsetTop ?? 0,
+  });
 
   // Load directory: all accounts across all contracts, or tag-filtered accounts
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   useEffect(() => {
-    // Reset cursor when tag changes — effect will re-run with cursor=undefined
+    // Reset when tag changes
     if (prevTagRef.current !== activeTag) {
       prevTagRef.current = activeTag;
       setCursor(undefined);
+      setProfiles(new Map());
+      fetchedProfilesRef.current = new Set();
       return;
     }
 
@@ -67,6 +109,27 @@ export function Directory() {
       cancelled = true;
     };
   }, [activeTag, cursor]);
+
+  // Batch-fetch profiles whenever accounts change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
+  useEffect(() => {
+    const missing = accounts.filter((id) => !fetchedProfilesRef.current.has(id));
+    if (missing.length === 0) return;
+    for (const id of missing) fetchedProfilesRef.current.add(id);
+
+    let cancelled = false;
+    client.getProfiles(missing).then((batch) => {
+      if (cancelled) return;
+      setProfiles((prev) => {
+        const next = new Map(prev);
+        for (const [id, p] of batch) next.set(id, p);
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accounts]);
 
   // Load signed-in user's following set + check if has profile
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
@@ -162,15 +225,44 @@ export function Directory() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map((id) => (
-              <AccountCard
-                key={id}
-                accountId={id}
-                isFollowing={followingSet.has(id)}
-                onFollowToggle={handleFollowToggle}
-              />
-            ))}
+          <div ref={gridRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const startIdx = virtualRow.index * cols;
+              const rowItems = accounts.slice(startIdx, startIdx + cols);
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start - (virtualizer.options.scrollMargin ?? 0)}px)`,
+                  }}
+                >
+                  <div
+                    className="pb-4"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                      gap: "1rem",
+                    }}
+                  >
+                    {rowItems.map((id) => (
+                      <AccountCard
+                        key={id}
+                        accountId={id}
+                        profile={profiles.get(id) ?? null}
+                        isFollowing={followingSet.has(id)}
+                        onFollowToggle={handleFollowToggle}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           {hasMore && (
             <div className="flex justify-center mt-6">

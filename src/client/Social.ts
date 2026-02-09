@@ -24,6 +24,13 @@ import type {
 } from "./types";
 
 export class Social extends FastData {
+  private static CACHE_TTL = 60_000;
+  private static FOLLOW_CACHE_TTL = 180_000;
+  private profileCache = new Map<string, { data: Profile | null; ts: number }>();
+  private profileInflight = new Map<string, Promise<Profile | null>>();
+  private followCache = new Map<string, { data: FollowResponse; ts: number }>();
+  private followInflight = new Map<string, Promise<FollowResponse>>();
+
   private get cid(): string {
     return this.config.contractId ?? DEFAULT_CONTRACT_ID;
   }
@@ -32,12 +39,46 @@ export class Social extends FastData {
   // Profile
   // ---------------------------------------------------------------------------
 
-  /** GET /v1/social/profile */
+  /** GET /v1/social/profile — cached with TTL + in-flight dedup. */
   async getProfile(accountId: string, contractId?: string): Promise<Profile | null> {
+    const cacheKey = `${accountId}:${contractId ?? this.cid}`;
+
+    const cached = this.profileCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < Social.CACHE_TTL) return cached.data;
+
+    const inflight = this.profileInflight.get(cacheKey);
+    if (inflight) return inflight;
+
     const params = new URLSearchParams({ account_id: accountId });
-    if (contractId) params.set("contract_id", contractId);
-    else if (this.cid) params.set("contract_id", this.cid);
-    return this.fetchJson<Profile | null>(`/v1/social/profile?${params}`);
+    const cid = contractId ?? this.cid;
+    if (cid) params.set("contract_id", cid);
+
+    const promise = this.fetchJson<Profile | null>(`/v1/social/profile?${params}`);
+    this.profileInflight.set(cacheKey, promise);
+    try {
+      const result = await promise;
+      this.profileCache.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    } finally {
+      this.profileInflight.delete(cacheKey);
+    }
+  }
+
+  /** Batch-fetch profiles in parallel, leveraging cache + dedup. */
+  async getProfiles(accountIds: string[]): Promise<Map<string, Profile | null>> {
+    const entries = await Promise.all(
+      accountIds.map((id) => this.getProfile(id).then((p) => [id, p] as const)),
+    );
+    return new Map(entries);
+  }
+
+  /** Evict cached profile data for an account. */
+  invalidateProfile(accountId: string): void {
+    for (const key of this.profileCache.keys()) {
+      if (key.startsWith(`${accountId}:`)) {
+        this.profileCache.delete(key);
+      }
+    }
   }
 
   /** Build transaction args for setting a profile. */
@@ -75,7 +116,7 @@ export class Social extends FastData {
   // Social Graph
   // ---------------------------------------------------------------------------
 
-  /** GET /v1/social/followers */
+  /** GET /v1/social/followers — cached with 3-min TTL + in-flight dedup. */
   async getFollowers(
     accountId: string,
     opts?: { limit?: number; offset?: number; contractId?: string },
@@ -85,10 +126,10 @@ export class Social extends FastData {
     if (cid) params.set("contract_id", cid);
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));
-    return this.fetchJson<FollowResponse>(`/v1/social/followers?${params}`);
+    return this.cachedFollow(`followers:${params}`, `/v1/social/followers?${params}`);
   }
 
-  /** GET /v1/social/following */
+  /** GET /v1/social/following — cached with 3-min TTL + in-flight dedup. */
   async getFollowing(
     accountId: string,
     opts?: { limit?: number; offset?: number; contractId?: string },
@@ -98,7 +139,32 @@ export class Social extends FastData {
     if (cid) params.set("contract_id", cid);
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));
-    return this.fetchJson<FollowResponse>(`/v1/social/following?${params}`);
+    return this.cachedFollow(`following:${params}`, `/v1/social/following?${params}`);
+  }
+
+  /** Evict cached followers/following data for an account. */
+  invalidateFollows(accountId: string): void {
+    for (const key of this.followCache.keys()) {
+      if (key.includes(accountId)) this.followCache.delete(key);
+    }
+  }
+
+  private async cachedFollow(cacheKey: string, url: string): Promise<FollowResponse> {
+    const cached = this.followCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < Social.FOLLOW_CACHE_TTL) return cached.data;
+
+    const inflight = this.followInflight.get(cacheKey);
+    if (inflight) return inflight;
+
+    const promise = this.fetchJson<FollowResponse>(url);
+    this.followInflight.set(cacheKey, promise);
+    try {
+      const result = await promise;
+      this.followCache.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    } finally {
+      this.followInflight.delete(cacheKey);
+    }
   }
 
   /** Build transaction args for following an account. */

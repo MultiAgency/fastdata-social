@@ -59,8 +59,8 @@ describe("kvGet", () => {
 
     const url = new URL(lastFetchUrl);
     expect(url.pathname).toBe("/v1/kv/get");
-    expect(url.searchParams.get("predecessor_id")).toBe("alice.near");
-    expect(url.searchParams.get("current_account_id")).toBe("contextual.near");
+    expect(url.searchParams.get("accountId")).toBe("alice.near");
+    expect(url.searchParams.get("contractId")).toBe("contextual.near");
     expect(url.searchParams.get("key")).toBe("profile/name");
   });
 });
@@ -78,8 +78,8 @@ describe("kvQuery", () => {
 
     const url = new URL(lastFetchUrl);
     expect(url.pathname).toBe("/v1/kv/query");
-    expect(url.searchParams.get("predecessor_id")).toBe("alice.near");
-    expect(url.searchParams.get("current_account_id")).toBe("contextual.near");
+    expect(url.searchParams.get("accountId")).toBe("alice.near");
+    expect(url.searchParams.get("contractId")).toBe("contextual.near");
   });
 
   test("includes all optional params", async () => {
@@ -97,7 +97,7 @@ describe("kvQuery", () => {
     restoreFetch();
 
     const url = new URL(lastFetchUrl);
-    expect(url.searchParams.get("current_account_id")).toBe("contextual.near");
+    expect(url.searchParams.get("contractId")).toBe("contextual.near");
     expect(url.searchParams.get("key_prefix")).toBe("profile/");
     expect(url.searchParams.get("limit")).toBe("10");
     expect(url.searchParams.get("offset")).toBe("5");
@@ -155,8 +155,8 @@ describe("kvHistory", () => {
 
     const url = new URL(lastFetchUrl);
     expect(url.pathname).toBe("/v1/kv/history");
-    expect(url.searchParams.get("predecessor_id")).toBe("alice.near");
-    expect(url.searchParams.get("current_account_id")).toBe("contextual.near");
+    expect(url.searchParams.get("accountId")).toBe("alice.near");
+    expect(url.searchParams.get("contractId")).toBe("contextual.near");
     expect(url.searchParams.get("key")).toBe("profile/name");
   });
 
@@ -192,7 +192,7 @@ describe("kvReverse", () => {
 
     const url = new URL(lastFetchUrl);
     expect(url.pathname).toBe("/v1/kv/reverse");
-    expect(url.searchParams.get("current_account_id")).toBe("contextual.near");
+    expect(url.searchParams.get("contractId")).toBe("contextual.near");
     expect(url.searchParams.get("key")).toBe("graph/follow/bob.near");
     expect(url.searchParams.get("exclude_null")).toBe("true");
   });
@@ -212,8 +212,8 @@ describe("kvBatch", () => {
     expect(lastFetchUrl).toBe(`${API_URL}/v1/kv/batch`);
     expect(lastFetchOpts?.method).toBe("POST");
     const body = JSON.parse(lastFetchOpts?.body as string);
-    expect(body.predecessor_id).toBe("alice.near");
-    expect(body.current_account_id).toBe("contextual.near");
+    expect(body.accountId).toBe("alice.near");
+    expect(body.contractId).toBe("contextual.near");
     expect(body.keys).toEqual(["key1", "key2"]);
   });
 });

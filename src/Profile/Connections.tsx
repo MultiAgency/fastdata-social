@@ -1,6 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { Profile } from "../client/types";
 import { AccountCard } from "../components/AccountCard";
 import { useClient } from "../hooks/useClient";
 import { useWallet } from "../providers/WalletProvider";
@@ -17,6 +18,7 @@ export function Connections({ type }: ConnectionsProps) {
   const client = useClient();
 
   const [accounts, setAccounts] = useState<string[]>([]);
+  const [profiles, setProfiles] = useState<Map<string, Profile | null>>(new Map());
   const [count, setCount] = useState(0);
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,20 @@ export function Connections({ type }: ConnectionsProps) {
       cancelled = true;
     };
   }, [paramAccountId, type, offset]);
+
+  // Batch-fetch profiles when accounts change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
+  useEffect(() => {
+    if (accounts.length === 0) return;
+    let cancelled = false;
+    setProfiles(new Map());
+    client.getProfiles(accounts).then((batch) => {
+      if (!cancelled) setProfiles(batch);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accounts]);
 
   // Load signed-in user's following set for follow buttons
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
@@ -106,6 +122,7 @@ export function Connections({ type }: ConnectionsProps) {
               <AccountCard
                 key={id}
                 accountId={id}
+                profile={profiles.get(id) ?? null}
                 isFollowing={followingSet.has(id)}
                 onFollowToggle={handleFollowToggle}
               />
