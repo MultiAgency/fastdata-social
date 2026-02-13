@@ -679,9 +679,9 @@ export function ProfileView({ accountId }: ProfileViewProps) {
                 disabled={committing}
                 className="font-mono bg-transparent border-border/40 text-xs"
               />
-              {parseTags(editTags).length > 0 && (
+              {tags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {parseTags(editTags).map((tag) => (
+                  {tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="font-mono text-xs">
                       {tag}
                     </Badge>
@@ -722,85 +722,86 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         </div>
       </div>
 
-      {/* Follow management + following/followers tabs */}
-      <div className="space-y-4">
-        <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
+      {/* Follow management + following/followers tabs — own profile only */}
+      {isOwn && signedInAccount && (
+        <div className="space-y-4">
+          <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
 
-        {/* Follow input card */}
-        <div className="p-4 sm:p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
-          <label
-            htmlFor="follow-input"
-            className="text-xs font-medium text-muted-foreground mb-2.5 block font-mono uppercase tracking-wider"
-          >
-            follow account
-          </label>
-          <div className="flex gap-2">
-            <Input
-              id="follow-input"
-              placeholder="alice.near"
-              value={pendingAccount}
-              onChange={(e) => {
-                setPendingAccount(e.target.value);
-                setValidationError("");
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleFollow(pendingAccount);
-              }}
-              disabled={transacting}
-              className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
-            />
-            <Button
-              onClick={() => handleFollow(pendingAccount)}
-              disabled={transacting || !pendingAccount}
-              className="font-mono rounded-lg h-10 px-5 shrink-0"
+          {/* Follow input card */}
+          <div className="p-4 sm:p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+            <label
+              htmlFor="follow-input"
+              className="text-xs font-medium text-muted-foreground mb-2.5 block font-mono uppercase tracking-wider"
             >
-              {transacting ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                "follow_"
-              )}
-            </Button>
+              follow account
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="follow-input"
+                placeholder="alice.near"
+                value={pendingAccount}
+                onChange={(e) => {
+                  setPendingAccount(e.target.value);
+                  setValidationError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleFollow(pendingAccount);
+                }}
+                disabled={transacting}
+                className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
+              />
+              <Button
+                onClick={() => handleFollow(pendingAccount)}
+                disabled={transacting || !pendingAccount}
+                className="font-mono rounded-lg h-10 px-5 shrink-0"
+              >
+                {transacting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                ) : (
+                  "follow_"
+                )}
+              </Button>
+            </div>
+            {validationError && (
+              <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
+            )}
           </div>
-          {validationError && (
-            <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
-          )}
-        </div>
 
-        {/* Tabs — visible for all profiles */}
-        <Tabs defaultValue="following">
-          <TabsList className="bg-secondary/30 border border-border/40 rounded-xl p-1 h-auto">
-            <TabsTrigger
-              value="following"
-              className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-            >
-              following ({followingList.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="followers"
-              className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-            >
-              followers ({followersList.length})
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="following" className="mt-3">
-            <AccountList
-              accounts={followingList}
-              onUnfollow={handleUnfollow}
-              disabled={transacting}
-              type="following"
-              loading={socialLoading}
-            />
-          </TabsContent>
-          <TabsContent value="followers" className="mt-3">
-            <AccountList
-              accounts={followersList}
-              disabled={transacting}
-              type="followers"
-              loading={socialLoading}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+          <Tabs defaultValue="following">
+            <TabsList className="bg-secondary/30 border border-border/40 rounded-xl p-1 h-auto">
+              <TabsTrigger
+                value="following"
+                className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+              >
+                following ({followingList.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="followers"
+                className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+              >
+                followers ({followersList.length})
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="following" className="mt-3">
+              <AccountList
+                accounts={followingList}
+                onUnfollow={handleUnfollow}
+                disabled={transacting}
+                type="following"
+                loading={socialLoading}
+              />
+            </TabsContent>
+            <TabsContent value="followers" className="mt-3">
+              <AccountList
+                accounts={followersList}
+                disabled={transacting}
+                type="followers"
+                loading={socialLoading}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 }

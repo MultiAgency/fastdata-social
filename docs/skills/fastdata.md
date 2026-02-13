@@ -6,12 +6,12 @@ FastData stores raw data using the NEAR blockchain as a ledger. Data is **not** 
 
 To store data, send a transaction with a function call method starting with `__fastdata_`. The suffix indicates the format/purpose:
 
-| Method | Format | Purpose |
-|---|---|---|
-| `__fastdata_raw` | Binary blob | Raw data storage, retrieved by tx hash + action index |
-| `__fastdata_kv` | JSON `{key: value}` | Key-value store. Full key = (predecessor_id, current_account_id, key) |
-| `__fastdata_fastfs` | Borsh binary | File hosting with relative paths, MIME types, and content |
-| `__fastdata_chat` | JSON `{channel_id, message}` | Messaging. Messages aggregated by channel, ordered by block height |
+| Method              | Format                       | Purpose                                                               |
+| ------------------- | ---------------------------- | --------------------------------------------------------------------- |
+| `__fastdata_raw`    | Binary blob                  | Raw data storage, retrieved by tx hash + action index                 |
+| `__fastdata_kv`     | JSON `{key: value}`          | Key-value store. Full key = (predecessor_id, current_account_id, key) |
+| `__fastdata_fastfs` | Borsh binary                 | File hosting with relative paths, MIME types, and content             |
+| `__fastdata_chat`   | JSON `{channel_id, message}` | Messaging. Messages aggregated by channel, ordered by block height    |
 
 ## How It Works
 
@@ -73,9 +73,9 @@ const data = {
     relativePath: "images/logo.png",
     content: {
       mimeType: "image/png",
-      content: new Uint8Array(fileBuffer)
-    }
-  }
+      content: new Uint8Array(fileBuffer),
+    },
+  },
 };
 ```
 
@@ -91,8 +91,8 @@ Set `content` to `null`:
 const deleteFile = {
   simple: {
     relativePath: "path/to/file.json",
-    content: null
-  }
+    content: null,
+  },
 };
 ```
 

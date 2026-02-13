@@ -1,14 +1,15 @@
 // FastData Protocol Configuration
 // Two sub-protocols: FastFS (file storage) and KV (key-value)
 
+import { DEFAULT_CONTRACT_ID } from "../client/constants";
 import type { AppConstants } from "../types";
 
 export const Constants: AppConstants = {
   // FastFS Configuration
   CONTRACT_ID: "fastfs.near", // For FastFS file uploads
 
-  // KV Configuration
-  KV_CONTRACT_ID: "contextual.near", // For KV social graph operations
+  // KV Configuration — single source of truth in client/constants.ts
+  KV_CONTRACT_ID: DEFAULT_CONTRACT_ID, // For KV social graph operations
 
   // API Configuration
   API_BASE_URL: import.meta.env.PROD ? "https://fastdata.up.railway.app" : "http://localhost:3001", // KV API server

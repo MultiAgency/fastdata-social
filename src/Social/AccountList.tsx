@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,11 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              <div className="flex items-center gap-2">
+              <Link
+                to="/profile/$accountId"
+                params={{ accountId }}
+                className="flex items-center gap-2 hover:text-primary transition-colors"
+              >
                 <span className="w-2 h-2 rounded-full bg-primary/50" />
                 <code className="text-sm font-mono">{accountId}</code>
                 {accountId.length === 64 && (
@@ -84,7 +89,7 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
                     ({formatAccountId(accountId)})
                   </span>
                 )}
-              </div>
+              </Link>
               {type === "following" && onUnfollow && (
                 <Button
                   variant="ghost"

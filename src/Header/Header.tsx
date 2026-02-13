@@ -20,7 +20,7 @@ export function Header() {
       <div className="flex h-14 sm:h-16 items-center px-4 sm:px-6 max-w-7xl mx-auto">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-[3px] mr-4 sm:mr-6 shrink-0 group">
-          <img src="/logo.png" alt="" className="w-9 h-9 sm:w-10 sm:h-10" />
+          <img src="/logo.svg" alt="" className="w-9 h-9 sm:w-10 sm:h-10" />
           <span className="text-base sm:text-lg font-semibold tracking-tight">
             <span className="text-primary group-hover:drop-shadow-[0_0_8px_oklch(0.82_0.19_155_/_40%)] transition-[filter] duration-300">
               NEAR Directory

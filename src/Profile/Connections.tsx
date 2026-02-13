@@ -13,7 +13,9 @@ interface ConnectionsProps {
 }
 
 export function Connections({ type }: ConnectionsProps) {
-  const { accountId: paramAccountId } = useParams({ strict: false }) as { accountId: string };
+  const { accountId: paramAccountId } = useParams({ strict: false }) as {
+    accountId?: string;
+  };
   const { accountId: signedInAccount } = useWallet();
   const client = useClient();
 
@@ -26,6 +28,7 @@ export function Connections({ type }: ConnectionsProps) {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   useEffect(() => {
+    if (!paramAccountId) return;
     let cancelled = false;
     setLoading(true);
 
@@ -85,6 +88,14 @@ export function Connections({ type }: ConnectionsProps) {
       return next;
     });
   }, []);
+
+  if (!paramAccountId) {
+    return (
+      <div className="text-center py-20 text-muted-foreground">
+        <p className="text-sm">No account specified.</p>
+      </div>
+    );
+  }
 
   const hasMore = offset + PAGE_SIZE < count;
 

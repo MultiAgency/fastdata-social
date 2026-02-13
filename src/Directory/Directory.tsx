@@ -162,8 +162,11 @@ export function Directory() {
   return (
     <div className="animate-fade-up">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">Directory</h1>
-        <p className="text-sm text-muted-foreground font-mono">accounts on the network</p>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">Accounts</h1>
+        <p className="text-sm text-muted-foreground">
+          indexed by{" "}
+          <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">__fastdata_kv</code>
+        </p>
       </div>
 
       {/* Profile prompt for signed-in users without a profile */}

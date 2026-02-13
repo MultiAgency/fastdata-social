@@ -145,7 +145,7 @@ export class Social extends FastData {
   /** Evict cached followers/following data for an account. */
   invalidateFollows(accountId: string): void {
     for (const key of this.followCache.keys()) {
-      if (key.includes(accountId)) this.followCache.delete(key);
+      if (key.includes(`account_id=${accountId}`)) this.followCache.delete(key);
     }
   }
 
@@ -244,19 +244,6 @@ export class Social extends FastData {
 
   /** Fetch posts mentioning an account via socialIndex. */
   async getMentionedFeed(
-    accountId: string,
-    opts?: FeedOptions & { contractId?: string },
-  ): Promise<IndexEntry[]> {
-    return this.socialIndex("notify", accountId, {
-      contractId: opts?.contractId,
-      limit: opts?.limit,
-      from: opts?.from,
-      order: opts?.order,
-    });
-  }
-
-  /** Fetch notifications for an account via socialIndex. */
-  async getNotifications(
     accountId: string,
     opts?: FeedOptions & { contractId?: string },
   ): Promise<IndexEntry[]> {
