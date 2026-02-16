@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { buildFollowArgs, buildUnfollowArgs } from "../client";
+import { cn } from "../lib/utils";
 import { Constants } from "../hooks/constants";
 import { useWallet } from "../providers/WalletProvider";
 
@@ -9,9 +10,10 @@ interface FollowButtonProps {
   isFollowing: boolean;
   onToggle?: (nowFollowing: boolean) => void;
   label?: string;
+  className?: string;
 }
 
-export function FollowButton({ targetAccountId, isFollowing, onToggle, label }: FollowButtonProps) {
+export function FollowButton({ targetAccountId, isFollowing, onToggle, label, className }: FollowButtonProps) {
   const { accountId, near } = useWallet();
   const [optimistic, setOptimistic] = useState(isFollowing);
   const [transacting, setTransacting] = useState(false);
@@ -56,7 +58,7 @@ export function FollowButton({ targetAccountId, isFollowing, onToggle, label }: 
     <Button
       variant={optimistic ? "outline" : "default"}
       size="sm"
-      className="font-mono text-xs"
+      className={cn("font-mono text-xs", className)}
       onClick={handleClick}
       disabled={transacting}
     >

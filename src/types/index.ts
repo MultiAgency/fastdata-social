@@ -47,5 +47,6 @@ export interface AppConstants {
   KV_CONTRACT_ID: string;
   API_BASE_URL: string;
   EXPLORER_URL: string;
+  ROOT_ACCOUNT_ID: string;
   NETWORK: NetworkConfig;
 }

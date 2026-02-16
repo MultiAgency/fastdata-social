@@ -229,49 +229,52 @@ export function Directory() {
         </div>
       )}
 
-      <div className="mb-6">
+      {accountId && (
+        <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
         <Input
           placeholder="Search accounts..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="font-mono bg-secondary/30 border-border/40 rounded-lg h-10 max-w-sm"
+          className="font-mono bg-secondary/30 border-border/40 rounded-lg h-10 sm:flex-1"
         />
-      </div>
 
-      {accountId && (
-        <div className="mb-6">
-          <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
-          <div className="flex gap-2 max-w-sm">
-            <Input
-              placeholder="alice.near"
-              value={pendingAccount}
-              onChange={(e) => {
-                setPendingAccount(e.target.value);
-                setValidationError("");
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleFollow(pendingAccount);
-              }}
-              disabled={transacting}
-              className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
-            />
-            <Button
-              onClick={() => handleFollow(pendingAccount)}
-              disabled={transacting || !pendingAccount}
-              className="font-mono rounded-lg h-10 px-5 shrink-0"
-            >
-              {transacting ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                "follow_"
-              )}
-            </Button>
+        {accountId && (
+          <div className="sm:flex-1">
+            <div className="flex gap-2">
+              <Input
+                placeholder="alice.near"
+                value={pendingAccount}
+                onChange={(e) => {
+                  setPendingAccount(e.target.value);
+                  setValidationError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleFollow(pendingAccount);
+                }}
+                disabled={transacting}
+                className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
+              />
+              <Button
+                onClick={() => handleFollow(pendingAccount)}
+                disabled={transacting || !pendingAccount}
+                className="font-mono rounded-lg h-10 px-5 shrink-0"
+              >
+                {transacting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                ) : (
+                  "follow_"
+                )}
+              </Button>
+            </div>
+            {validationError && (
+              <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
+            )}
           </div>
-          {validationError && (
-            <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {loading && accounts.length === 0 ? (
         <div className="flex justify-center py-20">

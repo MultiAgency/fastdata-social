@@ -819,38 +819,40 @@ export function ProfileView({ accountId }: ProfileViewProps) {
 
           {/* Follow input card */}
           <div className="p-4 sm:p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
-            <label
-              htmlFor="follow-input"
-              className="text-xs font-medium text-muted-foreground mb-2.5 block font-mono uppercase tracking-wider"
-            >
-              follow account
-            </label>
-            <div className="flex gap-2">
-              <Input
-                id="follow-input"
-                placeholder="alice.near"
-                value={pendingAccount}
-                onChange={(e) => {
-                  setPendingAccount(e.target.value);
-                  setValidationError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleFollow(pendingAccount);
-                }}
-                disabled={transacting}
-                className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
-              />
-              <Button
-                onClick={() => handleFollow(pendingAccount)}
-                disabled={transacting || !pendingAccount}
-                className="font-mono rounded-lg h-10 px-5 shrink-0"
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4">
+              <label
+                htmlFor="follow-input"
+                className="text-xs font-medium text-muted-foreground font-mono uppercase tracking-wider shrink-0"
               >
-                {transacting ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                ) : (
-                  "follow"
-                )}
-              </Button>
+                follow account
+              </label>
+              <div className="flex gap-2 flex-1">
+                <Input
+                  id="follow-input"
+                  placeholder="alice.near"
+                  value={pendingAccount}
+                  onChange={(e) => {
+                    setPendingAccount(e.target.value);
+                    setValidationError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleFollow(pendingAccount);
+                  }}
+                  disabled={transacting}
+                  className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
+                />
+                <Button
+                  onClick={() => handleFollow(pendingAccount)}
+                  disabled={transacting || !pendingAccount}
+                  className="font-mono rounded-lg h-10 px-5 shrink-0"
+                >
+                  {transacting ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                  ) : (
+                    "follow"
+                  )}
+                </Button>
+              </div>
             </div>
             {validationError && (
               <p className="text-xs text-destructive mt-2 font-mono">

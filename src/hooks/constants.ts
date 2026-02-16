@@ -14,6 +14,7 @@ export const Constants: AppConstants = {
   // API Configuration
   API_BASE_URL: import.meta.env.PROD ? "https://near.garden" : "http://localhost:3001", // KV API server
   EXPLORER_URL: "https://nearblocks.io/txns",
+  ROOT_ACCOUNT_ID: "root.near",
 
   // Network Configuration
   NETWORK: {

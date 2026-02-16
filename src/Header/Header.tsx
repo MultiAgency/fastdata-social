@@ -1,5 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { FollowButton } from "../components/FollowButton";
+import { Constants } from "../hooks/constants";
+import { useClient } from "../hooks/useClient";
 import { useWallet } from "../providers/WalletProvider";
 import { AccountNavbar } from "./SignIn/AccountNavbar";
 
@@ -8,7 +11,21 @@ const primaryLinks: { to: string; label: string }[] = [];
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { accountId } = useWallet();
+  const client = useClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [isFollowingRoot, setIsFollowingRoot] = useState(false);
+
+  useEffect(() => {
+    if (!accountId || accountId === Constants.ROOT_ACCOUNT_ID) return;
+    client
+      .kvGet({
+        predecessorId: accountId,
+        currentAccountId: Constants.KV_CONTRACT_ID,
+        key: `graph/follow/${Constants.ROOT_ACCOUNT_ID}`,
+      })
+      .then((entry) => setIsFollowingRoot(entry != null && entry.value != null))
+      .catch(() => setIsFollowingRoot(false));
+  }, [accountId, client]);
 
   const allLinks = [
     ...primaryLinks,
@@ -52,6 +69,12 @@ export function Header() {
 
         {/* Desktop right side */}
         <div className="hidden md:flex items-center gap-3 ml-auto">
+          <FollowButton
+            targetAccountId={Constants.ROOT_ACCOUNT_ID}
+            isFollowing={isFollowingRoot}
+            onToggle={setIsFollowingRoot}
+            label="join"
+          />
           <a
             className="text-muted-foreground hover:text-primary transition-colors"
             href="https://github.com/MultiAgency/fastdata-social"
@@ -68,6 +91,12 @@ export function Header() {
 
         {/* Mobile hamburger */}
         <div className="flex items-center gap-2 ml-auto md:hidden">
+          <FollowButton
+            targetAccountId={Constants.ROOT_ACCOUNT_ID}
+            isFollowing={isFollowingRoot}
+            onToggle={setIsFollowingRoot}
+            label="join"
+          />
           <AccountNavbar />
           <button
             type="button"
