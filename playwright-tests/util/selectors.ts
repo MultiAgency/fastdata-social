@@ -4,7 +4,7 @@ import { type Page, expect } from "@playwright/test";
 export async function expectAppShell(page: Page) {
 	const nav = page.getByRole("navigation");
 	await expect(nav).toBeVisible();
-	await expect(nav.getByRole("link", { name: "fastdata" })).toBeVisible();
+	await expect(nav.getByRole("link", { name: "NEAR Directory" })).toBeVisible();
 }
 
 /** Inject a fake wallet accountId so protected routes render without real signing. */

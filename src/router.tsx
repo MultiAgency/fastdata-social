@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter, Link } from "@tanstack/reac
 import { lazy, Suspense } from "react";
 import App from "./App";
 import { Directory } from "./Directory/Directory";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 const LazyGraphView = lazy(() =>
   import("./Social/GraphView").then((m) => ({ default: m.GraphView })),
@@ -9,10 +10,6 @@ const LazyGraphView = lazy(() =>
 
 const LazyProfilePage = lazy(() =>
   import("./Profile/ProfilePage").then((m) => ({ default: m.ProfilePage })),
-);
-
-const LazyConnections = lazy(() =>
-  import("./Profile/Connections").then((m) => ({ default: m.Connections })),
 );
 
 const Spinner = () => (
@@ -34,17 +31,10 @@ const rootRoute = createRootRoute({
   ),
 });
 
-interface DirectorySearch {
-  tag?: string;
-}
-
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: Directory,
-  validateSearch: (search: Record<string, unknown>): DirectorySearch => ({
-    tag: typeof search.tag === "string" ? search.tag : undefined,
-  }),
 });
 
 const graphRoute = createRoute({
@@ -53,9 +43,11 @@ const graphRoute = createRoute({
   component: () => {
     const { accountId } = graphRoute.useParams();
     return (
-      <Suspense fallback={<Spinner />}>
-        <LazyGraphView accountId={accountId} />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<Spinner />}>
+          <LazyGraphView accountId={accountId} />
+        </Suspense>
+      </ErrorBoundary>
     );
   },
 });
@@ -64,9 +56,11 @@ const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/profile",
   component: () => (
-    <Suspense fallback={<Spinner />}>
-      <LazyProfilePage />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<Spinner />}>
+        <LazyProfilePage />
+      </Suspense>
+    </ErrorBoundary>
   ),
 });
 
@@ -74,29 +68,11 @@ const profileAccountRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/profile/$accountId",
   component: () => (
-    <Suspense fallback={<Spinner />}>
-      <LazyProfilePage />
-    </Suspense>
-  ),
-});
-
-const profileFollowersRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/profile/$accountId/followers",
-  component: () => (
-    <Suspense fallback={<Spinner />}>
-      <LazyConnections type="followers" />
-    </Suspense>
-  ),
-});
-
-const profileFollowingRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/profile/$accountId/following",
-  component: () => (
-    <Suspense fallback={<Spinner />}>
-      <LazyConnections type="following" />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<Spinner />}>
+        <LazyProfilePage />
+      </Suspense>
+    </ErrorBoundary>
   ),
 });
 
@@ -105,8 +81,6 @@ const routeTree = rootRoute.addChildren([
   graphRoute,
   profileRoute,
   profileAccountRoute,
-  profileFollowersRoute,
-  profileFollowingRoute,
 ]);
 
 export const router = createRouter({

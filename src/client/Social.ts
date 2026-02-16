@@ -145,7 +145,8 @@ export class Social extends FastData {
   /** Evict cached followers/following data for an account. */
   invalidateFollows(accountId: string): void {
     for (const key of this.followCache.keys()) {
-      if (key.includes(`account_id=${accountId}`)) this.followCache.delete(key);
+      if (key.includes(`account_id=${accountId}&`) || key.endsWith(`account_id=${accountId}`))
+        this.followCache.delete(key);
     }
   }
 

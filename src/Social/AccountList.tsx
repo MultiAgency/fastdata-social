@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { FollowButton } from "../components/FollowButton";
 import { formatAccountId } from "../utils/validation";
 
 const ROW_HEIGHT = 48;
@@ -9,13 +9,19 @@ const MAX_VISIBLE_ROWS = 10;
 
 interface AccountListProps {
   accounts: string[];
-  onUnfollow?: (account: string) => void;
-  disabled: boolean;
+  followingSet: Set<string>;
+  onFollowToggle?: (accountId: string, nowFollowing: boolean) => void;
   type: "following" | "followers";
   loading: boolean;
 }
 
-export function AccountList({ accounts, onUnfollow, disabled, type, loading }: AccountListProps) {
+export function AccountList({
+  accounts,
+  followingSet,
+  onFollowToggle,
+  type,
+  loading,
+}: AccountListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -39,10 +45,7 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
   }
 
   if (!accounts || accounts.length === 0) {
-    const emptyMessage =
-      type === "following"
-        ? "Not following anyone yet. Enter an account above to follow."
-        : "No followers yet.";
+    const emptyMessage = type === "following" ? "Not following anyone yet." : "No followers yet.";
 
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -67,7 +70,7 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
               key={accountId}
               data-index={virtualRow.index}
               ref={virtualizer.measureElement}
-              className="flex items-center justify-between px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-b-0"
+              className="relative flex items-center justify-between px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-b-0"
               style={{
                 position: "absolute",
                 top: 0,
@@ -80,8 +83,10 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
               <Link
                 to="/profile/$accountId"
                 params={{ accountId }}
-                className="flex items-center gap-2 hover:text-primary transition-colors"
-              >
+                className="absolute inset-0"
+                aria-label={accountId}
+              />
+              <span className="flex items-center gap-2 pointer-events-none">
                 <span className="w-2 h-2 rounded-full bg-primary/50" />
                 <code className="text-sm font-mono">{accountId}</code>
                 {accountId.length === 64 && (
@@ -89,18 +94,14 @@ export function AccountList({ accounts, onUnfollow, disabled, type, loading }: A
                     ({formatAccountId(accountId)})
                   </span>
                 )}
-              </Link>
-              {type === "following" && onUnfollow && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-destructive font-mono text-xs"
-                  onClick={() => onUnfollow(accountId)}
-                  disabled={disabled}
-                >
-                  unfollow
-                </Button>
-              )}
+              </span>
+              <span className="relative z-10">
+                <FollowButton
+                  targetAccountId={accountId}
+                  isFollowing={followingSet.has(accountId)}
+                  onToggle={(now) => onFollowToggle?.(accountId, now)}
+                />
+              </span>
             </div>
           );
         })}

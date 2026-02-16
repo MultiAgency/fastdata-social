@@ -43,27 +43,37 @@ export const AccountCard = memo(function AccountCard({
   const about = profile?.about ?? profile?.description;
 
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4 hover:border-primary/30 transition-colors">
+    <div className="relative rounded-xl border border-border bg-card/50 p-4 hover:border-primary/30 transition-colors">
+      <Link
+        to="/profile/$accountId"
+        params={{ accountId }}
+        className="absolute inset-0 rounded-xl"
+        aria-label={accountId}
+      />
       <div className="flex items-start justify-between gap-2">
-        <Link to="/profile/$accountId" params={{ accountId }} className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pointer-events-none">
           <ProfileHeader
             accountId={accountId}
             name={profile?.name}
             imageUrl={profile?.image?.url}
             size="sm"
           />
-        </Link>
-        <FollowButton
-          targetAccountId={accountId}
-          isFollowing={isFollowing}
-          onToggle={(now) => onFollowToggle?.(accountId, now)}
-        />
+        </div>
+        <span className="relative z-10">
+          <FollowButton
+            targetAccountId={accountId}
+            isFollowing={isFollowing}
+            onToggle={(now) => onFollowToggle?.(accountId, now)}
+          />
+        </span>
       </div>
       {about && (
-        <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">{about}</p>
+        <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed pointer-events-none">
+          {about}
+        </p>
       )}
       {tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-2 flex flex-wrap gap-1 relative z-10">
           {tags.slice(0, 4).map((tag) => (
             <TagBadge key={tag} tag={tag} />
           ))}

@@ -22,5 +22,5 @@ export function ProfilePage() {
     );
   }
 
-  return <ProfileView accountId={targetAccount} />;
+  return <ProfileView key={targetAccount} accountId={targetAccount} />;
 }

@@ -1,11 +1,17 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { buildFollowArgs } from "../client";
 import type { Profile } from "../client/types";
 import { AccountCard } from "../components/AccountCard";
+import { Constants } from "../hooks/constants";
 import { useClient } from "../hooks/useClient";
 import { useWallet } from "../providers/WalletProvider";
+import { TransactionAlert } from "../Social/TransactionAlert";
+import type { Transaction } from "../types";
+import { isValidNearAccount } from "../utils/validation";
 
 const PAGE_SIZE = 24;
 
@@ -35,9 +41,7 @@ function useColumnCount(ref: React.RefObject<HTMLDivElement | null>) {
 
 export function Directory() {
   const client = useClient();
-  const { accountId } = useWallet();
-  const navigate = useNavigate();
-  const { tag } = useSearch({ from: "/" });
+  const { accountId, near } = useWallet();
 
   const [accounts, setAccounts] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Map<string, Profile | null>>(new Map());
@@ -46,14 +50,28 @@ export function Directory() {
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasProfile, setHasProfile] = useState(true);
   const [hasMore, setHasMore] = useState(false);
-  const activeTag = tag ?? "";
-  const prevTagRef = useRef(activeTag);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [pendingAccount, setPendingAccount] = useState("");
+  const [validationError, setValidationError] = useState("");
+  const [transacting, setTransacting] = useState(false);
+  const [lastTx, setLastTx] = useState<Transaction | null>(null);
   const fetchedProfilesRef = useRef(new Set<string>());
+
+  // Client-side search filter
+  const filteredAccounts = useMemo(() => {
+    if (!searchTerm) return accounts;
+    const lower = searchTerm.toLowerCase();
+    return accounts.filter((id) => {
+      if (id.toLowerCase().includes(lower)) return true;
+      const p = profiles.get(id);
+      return p?.name ? p.name.toLowerCase().includes(lower) : false;
+    });
+  }, [accounts, profiles, searchTerm]);
 
   // Virtual scrolling
   const gridRef = useRef<HTMLDivElement>(null);
   const cols = useColumnCount(gridRef);
-  const rowCount = Math.ceil(accounts.length / cols);
+  const rowCount = Math.ceil(filteredAccounts.length / cols);
 
   const virtualizer = useWindowVirtualizer({
     count: rowCount,
@@ -62,33 +80,18 @@ export function Directory() {
     scrollMargin: gridRef.current?.offsetTop ?? 0,
   });
 
-  // Load directory: all accounts across all contracts, or tag-filtered accounts
+  // Load directory: all accounts across all contracts
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   useEffect(() => {
-    // Reset when tag changes
-    if (prevTagRef.current !== activeTag) {
-      prevTagRef.current = activeTag;
-      setCursor(undefined);
-      setProfiles(new Map());
-      fetchedProfilesRef.current = new Set();
-      return;
-    }
-
     let cancelled = false;
     setLoading(true);
 
-    const fetchAccounts = activeTag
-      ? client.kvByKey(`profile/tags/${activeTag}`, { limit: PAGE_SIZE }).then((entries) => ({
-          data: entries.map((e) => e.predecessor_id),
-          meta: { has_more: false },
-        }))
-      : client.kvAccounts(undefined, undefined, {
-          limit: PAGE_SIZE + 1,
-          afterAccount: cursor,
-          scan: true,
-        });
-
-    fetchAccounts
+    client
+      .kvAccounts(undefined, undefined, {
+        limit: PAGE_SIZE + 1,
+        afterAccount: cursor,
+        scan: true,
+      })
       .then((res) => {
         if (cancelled) return;
         const hasExtra = res.data.length > PAGE_SIZE;
@@ -108,7 +111,7 @@ export function Directory() {
     return () => {
       cancelled = true;
     };
-  }, [activeTag, cursor]);
+  }, [cursor]);
 
   // Batch-fetch profiles whenever accounts change
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
@@ -159,6 +162,48 @@ export function Directory() {
     });
   }, []);
 
+  const handleFollow = useCallback(
+    async (target: string) => {
+      if (!target) {
+        setValidationError("Please enter an account ID");
+        return;
+      }
+      if (!isValidNearAccount(target)) {
+        setValidationError("Invalid NEAR account format");
+        return;
+      }
+      if (target === accountId) {
+        setValidationError("You cannot follow yourself");
+        return;
+      }
+      if (followingSet.has(target)) {
+        setValidationError("Already following this account");
+        return;
+      }
+      if (!accountId || !near) return;
+      setTransacting(true);
+      setValidationError("");
+
+      try {
+        const followArgs = buildFollowArgs(accountId, target);
+        const result = await near
+          .transaction(accountId)
+          .functionCall(Constants.KV_CONTRACT_ID, "__fastdata_kv", followArgs, { gas: "10 Tgas" })
+          .send();
+        const txId = (result?.transaction?.hash as string) || null;
+        setFollowingSet((prev) => new Set(prev).add(target));
+        setLastTx({ type: "follow", account: target, txId, status: "success" });
+        setPendingAccount("");
+        client.invalidateFollows(accountId);
+      } catch {
+        setLastTx({ type: "follow", account: target, txId: null, status: "error", error: true });
+      } finally {
+        setTransacting(false);
+      }
+    },
+    [accountId, near, followingSet, client],
+  );
+
   return (
     <div className="animate-fade-up">
       <div className="mb-8">
@@ -184,16 +229,47 @@ export function Directory() {
         </div>
       )}
 
-      {activeTag && (
+      <div className="mb-6">
+        <Input
+          placeholder="Search accounts..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="font-mono bg-secondary/30 border-border/40 rounded-lg h-10 max-w-sm"
+        />
+      </div>
+
+      {accountId && (
         <div className="mb-6">
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/", search: {} })}
-            className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            tag: {activeTag}
-            <span className="text-destructive ml-1">x</span>
-          </button>
+          <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
+          <div className="flex gap-2 max-w-sm">
+            <Input
+              placeholder="alice.near"
+              value={pendingAccount}
+              onChange={(e) => {
+                setPendingAccount(e.target.value);
+                setValidationError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleFollow(pendingAccount);
+              }}
+              disabled={transacting}
+              className={`font-mono bg-secondary/30 border-border/40 rounded-lg h-10 ${validationError ? "border-destructive/60 focus:border-destructive" : "focus:border-primary/40"}`}
+            />
+            <Button
+              onClick={() => handleFollow(pendingAccount)}
+              disabled={transacting || !pendingAccount}
+              className="font-mono rounded-lg h-10 px-5 shrink-0"
+            >
+              {transacting ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                "follow_"
+              )}
+            </Button>
+          </div>
+          {validationError && (
+            <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
+          )}
         </div>
       )}
 
@@ -222,16 +298,18 @@ export function Directory() {
             </svg>
           </div>
           <h2 className="text-lg font-semibold mb-2">No one here yet</h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {activeTag ? `No accounts tagged "${activeTag}" yet.` : "No accounts found."}
-          </p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">No accounts found.</p>
+        </div>
+      ) : filteredAccounts.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          <p className="text-sm">No accounts matching &quot;{searchTerm}&quot;</p>
         </div>
       ) : (
         <>
           <div ref={gridRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const startIdx = virtualRow.index * cols;
-              const rowItems = accounts.slice(startIdx, startIdx + cols);
+              const rowItems = filteredAccounts.slice(startIdx, startIdx + cols);
               return (
                 <div
                   key={virtualRow.key}
@@ -267,7 +345,7 @@ export function Directory() {
               );
             })}
           </div>
-          {hasMore && (
+          {hasMore && !searchTerm && (
             <div className="flex justify-center mt-6">
               <Button
                 variant="outline"

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buildFollowArgs, buildProfileArgs, buildUnfollowArgs } from "../client";
+import { buildFollowArgs, buildProfileArgs } from "../client";
 import type { Profile } from "../client/types";
 import { FollowButton } from "../components/FollowButton";
 import { TagBadge } from "../components/TagBadge";
@@ -19,7 +19,12 @@ import { TransactionAlert } from "../Social/TransactionAlert";
 import type { FastfsData, Transaction } from "../types";
 import { getTxExplorerUrl, isValidNearAccount } from "../utils/validation";
 
-const ACCEPTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const ACCEPTED_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
 const MAX_RAW_BYTES = 5_000_000;
 const MAX_DIM = 512;
 const JPEG_QUALITY = 0.85;
@@ -67,6 +72,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
   const { accountId: signedInAccount, near } = useWallet();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -87,10 +93,11 @@ export function ProfileView({ accountId }: ProfileViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Own-profile follow management
+  // Social connections (visible for all profiles)
   const [followingList, setFollowingList] = useState<string[]>([]);
   const [followersList, setFollowersList] = useState<string[]>([]);
   const [socialLoading, setSocialLoading] = useState(false);
+  const [socialError, setSocialError] = useState(false);
   const [transacting, setTransacting] = useState(false);
   const [lastTx, setLastTx] = useState<Transaction | null>(null);
   const [pendingAccount, setPendingAccount] = useState("");
@@ -98,11 +105,45 @@ export function ProfileView({ accountId }: ProfileViewProps) {
 
   const isOwn = signedInAccount === accountId;
 
-  // Load profile + isFollowing check. Counts come from loadSocialData below.
+  // Signed-in user's following set (for FollowButton state on other profiles)
+  const [myFollowingList, setMyFollowingList] = useState<string[]>([]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   useEffect(() => {
-    let cancelled = false;
+    if (!signedInAccount || isOwn) return;
+    client
+      .getFollowing(signedInAccount)
+      .then((res) => setMyFollowingList(res?.accounts ?? []))
+      .catch(() => {});
+  }, [signedInAccount, isOwn]);
+
+  const myFollowingSet = useMemo(
+    () => new Set(isOwn ? followingList : myFollowingList),
+    [isOwn, followingList, myFollowingList],
+  );
+
+  const handleFollowToggle = useCallback(
+    (target: string, nowFollowing: boolean) => {
+      if (isOwn) {
+        setFollowingList((prev) =>
+          nowFollowing ? [...prev, target] : prev.filter((id) => id !== target),
+        );
+        setFollowingCount((c) => c + (nowFollowing ? 1 : -1));
+      } else {
+        setMyFollowingList((prev) =>
+          nowFollowing ? [...prev, target] : prev.filter((id) => id !== target),
+        );
+      }
+      client.invalidateFollows(signedInAccount ?? "");
+    },
+    [isOwn, client, signedInAccount],
+  );
+
+  // Shared fetch logic used by both initial load and retry
+  const loadProfile = useCallback(() => {
     setLoading(true);
     setEmpty(false);
+    setLoadError(false);
 
     const profileP = client.getProfile(accountId);
     const isFollowingP = signedInAccount
@@ -112,31 +153,34 @@ export function ProfileView({ accountId }: ProfileViewProps) {
             currentAccountId: Constants.KV_CONTRACT_ID,
             key: `graph/follow/${accountId}`,
           })
-          .then((entry) => entry !== null && entry.value !== null)
+          .then((entry) => entry != null && entry.value != null)
           .catch(() => false)
       : Promise.resolve(false);
 
-    Promise.all([profileP, isFollowingP])
-      .then(([p, follows]) => {
-        if (cancelled) return;
-        if (!p || Object.keys(p).length === 0) {
-          setEmpty(true);
-        } else {
-          setProfile(p);
-        }
-        setIsFollowing(follows as boolean);
+    return Promise.all([profileP, isFollowingP]).then(([p, follows]) => {
+      if (!p || Object.keys(p).length === 0) {
+        setEmpty(true);
+      } else {
+        setProfile(p);
+      }
+      setIsFollowing(follows as boolean);
+      setLoading(false);
+    });
+  }, [accountId, client, signedInAccount]);
+
+  // Load profile + isFollowing check. Counts come from loadSocialData below.
+  useEffect(() => {
+    let cancelled = false;
+    loadProfile().catch(() => {
+      if (!cancelled) {
+        setLoadError(true);
         setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setEmpty(true);
-          setLoading(false);
-        }
-      });
+      }
+    });
     return () => {
       cancelled = true;
     };
-  }, [accountId, client, signedInAccount]);
+  }, [loadProfile]);
 
   // Populate edit fields when entering edit mode
   const enterEditMode = useCallback(() => {
@@ -195,9 +239,14 @@ export function ProfileView({ accountId }: ProfileViewProps) {
 
         await near
           .transaction(signedInAccount)
-          .functionCall(Constants.CONTRACT_ID, "__fastdata_fastfs", encodeFfs(ffs), {
-            gas: "10 Tgas",
-          })
+          .functionCall(
+            Constants.CONTRACT_ID,
+            "__fastdata_fastfs",
+            encodeFfs(ffs),
+            {
+              gas: "10 Tgas",
+            },
+          )
           .send();
 
         const url = `https://${signedInAccount}.fastfs.io/${Constants.CONTRACT_ID}/${path}`;
@@ -205,7 +254,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         setImgError(false);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Upload failed";
-        setEditError(message);
+        setEditError(`Image upload failed: ${message}. Please try again.`);
       } finally {
         setUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -223,7 +272,9 @@ export function ProfileView({ accountId }: ProfileViewProps) {
     try {
       const result = await near
         .transaction(signedInAccount)
-        .functionCall(Constants.KV_CONTRACT_ID, "__fastdata_kv", kvArgs, { gas: "10 Tgas" })
+        .functionCall(Constants.KV_CONTRACT_ID, "__fastdata_kv", kvArgs, {
+          gas: "10 Tgas",
+        })
         .send();
 
       const hash = result?.transaction?.hash as string | undefined;
@@ -240,7 +291,9 @@ export function ProfileView({ accountId }: ProfileViewProps) {
                 about: editAbout || undefined,
                 tags:
                   parseTags(editTags).length > 0
-                    ? Object.fromEntries(parseTags(editTags).map((t) => [t, ""]))
+                    ? Object.fromEntries(
+                        parseTags(editTags).map((t) => [t, ""]),
+                      )
                     : prev.tags,
               }
             : prev,
@@ -279,17 +332,18 @@ export function ProfileView({ accountId }: ProfileViewProps) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: client is a singleton
   const loadSocialData = useCallback(async () => {
     setSocialLoading(true);
+    setSocialError(false);
     try {
       const [followingRes, followersRes] = await Promise.all([
         client.getFollowing(accountId),
         client.getFollowers(accountId),
       ]);
-      setFollowingList(followingRes.accounts);
-      setFollowersList(followersRes.accounts);
-      setFollowingCount(followingRes.count);
-      setFollowerCount(followersRes.count);
+      setFollowingList(followingRes?.accounts ?? []);
+      setFollowersList(followersRes?.accounts ?? []);
+      setFollowingCount(followingRes?.count ?? 0);
+      setFollowerCount(followersRes?.count ?? 0);
     } catch {
-      // silent — counts remain at 0
+      setSocialError(true);
     }
     setSocialLoading(false);
   }, [accountId]);
@@ -341,12 +395,19 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         const followArgs = buildFollowArgs(signedInAccount, targetAccount);
         const result = await near
           .transaction(signedInAccount)
-          .functionCall(Constants.KV_CONTRACT_ID, "__fastdata_kv", followArgs, { gas: "10 Tgas" })
+          .functionCall(Constants.KV_CONTRACT_ID, "__fastdata_kv", followArgs, {
+            gas: "10 Tgas",
+          })
           .send();
         const txId = (result?.transaction?.hash as string) || null;
         setFollowingList((prev) => [...prev, targetAccount]);
         setFollowingCount((c) => c + 1);
-        setLastTx({ type: "follow", account: targetAccount, txId, status: "success" });
+        setLastTx({
+          type: "follow",
+          account: targetAccount,
+          txId,
+          status: "success",
+        });
         setPendingAccount("");
         client.invalidateFollows(accountId);
       } catch {
@@ -366,38 +427,6 @@ export function ProfileView({ accountId }: ProfileViewProps) {
     [followingList, signedInAccount, near, validateAccount, accountId, client],
   );
 
-  const handleUnfollow = useCallback(
-    async (targetAccount: string) => {
-      if (!signedInAccount || !near) return;
-      setTransacting(true);
-
-      try {
-        const unfollowArgs = buildUnfollowArgs(signedInAccount, targetAccount);
-        const result = await near
-          .transaction(signedInAccount)
-          .functionCall(Constants.KV_CONTRACT_ID, "__fastdata_kv", unfollowArgs, { gas: "10 Tgas" })
-          .send();
-        const txId = (result?.transaction?.hash as string) || null;
-        setFollowingList((prev) => prev.filter((id) => id !== targetAccount));
-        setFollowingCount((c) => c - 1);
-        setLastTx({ type: "unfollow", account: targetAccount, txId, status: "success" });
-        client.invalidateFollows(accountId);
-      } catch {
-        setLastTx({
-          type: "unfollow",
-          account: targetAccount,
-          txId: null,
-          status: "error",
-          error: true,
-        });
-        client.invalidateFollows(accountId);
-      } finally {
-        setTransacting(false);
-      }
-    },
-    [signedInAccount, near, accountId, client],
-  );
-
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -406,19 +435,51 @@ export function ProfileView({ accountId }: ProfileViewProps) {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center py-20 animate-fade-up">
+        <p className="text-sm text-destructive font-mono mb-3">
+          Failed to load profile
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-mono text-xs"
+          onClick={() => {
+            loadProfile().catch(() => {
+              setLoadError(true);
+              setLoading(false);
+            });
+          }}
+        >
+          retry_
+        </Button>
+      </div>
+    );
+  }
+
   const imageUrl = editing ? editImageUrl : profile?.image?.url;
   const name = editing ? editName : profile?.name;
   const about = editing ? editAbout : (profile?.about ?? profile?.description);
-  const tags = editing ? parseTags(editTags) : profile?.tags ? Object.keys(profile.tags) : [];
+  const tags = editing
+    ? parseTags(editTags)
+    : profile?.tags
+      ? Object.keys(profile.tags)
+      : [];
 
   return (
     <div className="animate-fade-up space-y-4 sm:space-y-6">
       {/* Edit mode alerts */}
       {editing && editTxHash && (
-        <Alert variant="default" className="border-l-2 border-l-primary bg-primary/5">
+        <Alert
+          variant="default"
+          className="border-l-2 border-l-primary bg-primary/5"
+        >
           <AlertDescription>
             <span className="font-semibold text-primary">Profile updated</span>
-            <span className="text-sm text-muted-foreground font-mono ml-2">indexing (~2-3s)</span>
+            <span className="text-sm text-muted-foreground font-mono ml-2">
+              indexing (~2-3s)
+            </span>
             <span className="mx-2 text-muted-foreground">&middot;</span>
             <a
               href={getTxExplorerUrl(editTxHash, Constants.EXPLORER_URL)}
@@ -432,7 +493,10 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         </Alert>
       )}
       {editing && editError && (
-        <Alert variant="default" className="border-l-2 border-l-accent bg-accent/5">
+        <Alert
+          variant="default"
+          className="border-l-2 border-l-accent bg-accent/5"
+        >
           <AlertDescription>
             <span className="font-semibold text-destructive">{editError}</span>
           </AlertDescription>
@@ -633,24 +697,41 @@ export function ProfileView({ accountId }: ProfileViewProps) {
 
           {/* Stats bar */}
           <div className="mt-4 flex items-center gap-5">
-            <Link
-              to="/profile/$accountId/followers"
-              params={{ accountId }}
-              className="group flex items-baseline gap-1.5 text-sm hover:text-primary transition-colors"
-            >
-              <span className="font-semibold text-base tabular-nums">{followerCount}</span>
-              <span className="text-muted-foreground text-xs group-hover:text-primary/70 transition-colors">
-                followers
+            <div className="flex items-baseline gap-1.5 text-sm">
+              <span className="font-semibold text-base tabular-nums">
+                {followerCount}
               </span>
-            </Link>
+              <span className="text-muted-foreground text-xs">followers</span>
+            </div>
+            <div className="flex items-baseline gap-1.5 text-sm">
+              <span className="font-semibold text-base tabular-nums">
+                {followingCount}
+              </span>
+              <span className="text-muted-foreground text-xs">following</span>
+            </div>
             <Link
-              to="/profile/$accountId/following"
+              to="/graph/$accountId"
               params={{ accountId }}
-              className="group flex items-baseline gap-1.5 text-sm hover:text-primary transition-colors"
+              className="group flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors ml-auto"
             >
-              <span className="font-semibold text-base tabular-nums">{followingCount}</span>
-              <span className="text-muted-foreground text-xs group-hover:text-primary/70 transition-colors">
-                following
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              <span className="text-xs font-mono group-hover:text-primary/70 transition-colors">
+                graph
               </span>
             </Link>
           </div>
@@ -666,7 +747,9 @@ export function ProfileView({ accountId }: ProfileViewProps) {
               className="mt-3 flex w-full rounded-lg border border-border/40 bg-transparent px-3 py-2 text-sm font-sans placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             />
           ) : about ? (
-            <p className="mt-3 text-sm text-foreground/80 leading-relaxed max-w-prose">{about}</p>
+            <p className="mt-3 text-sm text-foreground/80 leading-relaxed max-w-prose">
+              {about}
+            </p>
           ) : null}
 
           {/* Tags */}
@@ -682,7 +765,11 @@ export function ProfileView({ accountId }: ProfileViewProps) {
               {tags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="font-mono text-xs">
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="font-mono text-xs"
+                    >
                       {tag}
                     </Badge>
                   ))}
@@ -722,10 +809,13 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         </div>
       </div>
 
-      {/* Follow management + following/followers tabs — own profile only */}
+      {/* Follow management — own profile only */}
       {isOwn && signedInAccount && (
         <div className="space-y-4">
-          <TransactionAlert transaction={lastTx} onDismiss={() => setLastTx(null)} />
+          <TransactionAlert
+            transaction={lastTx}
+            onDismiss={() => setLastTx(null)}
+          />
 
           {/* Follow input card */}
           <div className="p-4 sm:p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
@@ -758,49 +848,69 @@ export function ProfileView({ accountId }: ProfileViewProps) {
                 {transacting ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                 ) : (
-                  "follow_"
+                  "follow"
                 )}
               </Button>
             </div>
             {validationError && (
-              <p className="text-xs text-destructive mt-2 font-mono">{validationError}</p>
+              <p className="text-xs text-destructive mt-2 font-mono">
+                {validationError}
+              </p>
             )}
           </div>
-
-          <Tabs defaultValue="following">
-            <TabsList className="bg-secondary/30 border border-border/40 rounded-xl p-1 h-auto">
-              <TabsTrigger
-                value="following"
-                className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                following ({followingList.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="followers"
-                className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                followers ({followersList.length})
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="following" className="mt-3">
-              <AccountList
-                accounts={followingList}
-                onUnfollow={handleUnfollow}
-                disabled={transacting}
-                type="following"
-                loading={socialLoading}
-              />
-            </TabsContent>
-            <TabsContent value="followers" className="mt-3">
-              <AccountList
-                accounts={followersList}
-                disabled={transacting}
-                type="followers"
-                loading={socialLoading}
-              />
-            </TabsContent>
-          </Tabs>
         </div>
+      )}
+
+      {/* Social connections — visible for all profiles */}
+      {socialError ? (
+        <div className="text-center py-8">
+          <p className="text-sm text-destructive font-mono mb-3">
+            Failed to load connections
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="font-mono text-xs"
+            onClick={loadSocialData}
+          >
+            retry_
+          </Button>
+        </div>
+      ) : (
+        <Tabs defaultValue="following">
+          <TabsList className="bg-secondary/30 border border-border/40 rounded-xl p-1 h-auto">
+            <TabsTrigger
+              value="following"
+              className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              following ({followingList.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="followers"
+              className="font-mono text-xs rounded-lg px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              followers ({followersList.length})
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="following" className="mt-3">
+            <AccountList
+              accounts={followingList}
+              followingSet={myFollowingSet}
+              onFollowToggle={handleFollowToggle}
+              type="following"
+              loading={socialLoading}
+            />
+          </TabsContent>
+          <TabsContent value="followers" className="mt-3">
+            <AccountList
+              accounts={followersList}
+              followingSet={myFollowingSet}
+              onFollowToggle={handleFollowToggle}
+              type="followers"
+              loading={socialLoading}
+            />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
