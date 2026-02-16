@@ -66,8 +66,8 @@ function GraphViewInner({ accountId }: GraphViewProps) {
           client.getFollowing(nodeId, { limit: EXPAND_LIMIT }),
           client.getFollowers(nodeId, { limit: EXPAND_LIMIT }),
         ]);
-        const following = followingRes.accounts;
-        const followers = followersRes.accounts;
+        const following = followingRes.data;
+        const followers = followersRes.data;
         expandedRef.current.add(nodeId);
 
         const allDiscovered = new Set([...nodeIdsRef.current, ...following, ...followers]);

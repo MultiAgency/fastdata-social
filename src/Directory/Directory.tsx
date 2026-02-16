@@ -143,7 +143,7 @@ export function Directory() {
     Promise.all([client.getFollowing(accountId), client.getProfile(accountId)])
       .then(([followingRes, profile]) => {
         if (cancelled) return;
-        setFollowingSet(new Set(followingRes.accounts));
+        setFollowingSet(new Set(followingRes.data));
         setHasProfile(!!profile && Object.keys(profile).length > 0);
       })
       .catch(() => {});

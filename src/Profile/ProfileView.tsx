@@ -113,7 +113,7 @@ export function ProfileView({ accountId }: ProfileViewProps) {
     if (!signedInAccount || isOwn) return;
     client
       .getFollowing(signedInAccount)
-      .then((res) => setMyFollowingList(res?.accounts ?? []))
+      .then((res) => setMyFollowingList(res?.data ?? []))
       .catch(() => {});
   }, [signedInAccount, isOwn]);
 
@@ -338,8 +338,8 @@ export function ProfileView({ accountId }: ProfileViewProps) {
         client.getFollowing(accountId),
         client.getFollowers(accountId),
       ]);
-      setFollowingList(followingRes?.accounts ?? []);
-      setFollowersList(followersRes?.accounts ?? []);
+      setFollowingList(followingRes?.data ?? []);
+      setFollowersList(followersRes?.data ?? []);
       setFollowingCount(followingRes?.count ?? 0);
       setFollowerCount(followersRes?.count ?? 0);
     } catch {

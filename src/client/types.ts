@@ -64,7 +64,7 @@ export interface IndexResponse {
 
 /** Response from followers/following endpoints. */
 export interface FollowResponse {
-  accounts: string[];
+  data: string[];
   count: number;
 }
 

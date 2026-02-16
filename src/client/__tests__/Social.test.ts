@@ -155,7 +155,7 @@ describe("invalidateProfile", () => {
 
 describe("getFollowing", () => {
   test("constructs correct URL", async () => {
-    mockFetch({ accounts: ["bob.near"], count: 1 });
+    mockFetch({ data: ["bob.near"], count: 1 });
     const client = createClient();
     await client.getFollowing("alice.near");
 
@@ -166,7 +166,7 @@ describe("getFollowing", () => {
   });
 
   test("passes limit and offset", async () => {
-    mockFetch({ accounts: [], count: 0 });
+    mockFetch({ data: [], count: 0 });
     const client = createClient();
     await client.getFollowing("alice.near", { limit: 10, offset: 5 });
 
@@ -176,7 +176,7 @@ describe("getFollowing", () => {
   });
 
   test("caches with follow TTL", async () => {
-    const getCount = mockFetchCounted({ accounts: ["bob.near"], count: 1 });
+    const getCount = mockFetchCounted({ data: ["bob.near"], count: 1 });
     const client = createClient();
     await client.getFollowing("alice.near");
     await client.getFollowing("alice.near");
@@ -191,7 +191,7 @@ describe("getFollowing", () => {
 
 describe("getFollowers", () => {
   test("constructs correct URL", async () => {
-    mockFetch({ accounts: ["bob.near"], count: 1 });
+    mockFetch({ data: ["bob.near"], count: 1 });
     const client = createClient();
     await client.getFollowers("alice.near");
 
@@ -207,7 +207,7 @@ describe("getFollowers", () => {
 
 describe("invalidateFollows", () => {
   test("evicts cached follows causing re-fetch", async () => {
-    const getCount = mockFetchCounted({ accounts: [], count: 0 });
+    const getCount = mockFetchCounted({ data: [], count: 0 });
     const client = createClient();
     await client.getFollowing("alice.near");
     expect(getCount()).toBe(1);
@@ -219,7 +219,7 @@ describe("invalidateFollows", () => {
   });
 
   test("does not evict unrelated accounts", async () => {
-    const getCount = mockFetchCounted({ accounts: [], count: 0 });
+    const getCount = mockFetchCounted({ data: [], count: 0 });
     const client = createClient();
     await client.getFollowing("alice.near");
     await client.getFollowing("bob.near");

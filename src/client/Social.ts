@@ -157,10 +157,7 @@ export class Social extends FastData {
     const inflight = this.followInflight.get(cacheKey);
     if (inflight) return inflight;
 
-    const promise = this.fetchJson<FollowResponse>(url).then((raw) => ({
-      accounts: (raw as unknown as { data?: string[] }).data ?? raw.accounts ?? [],
-      count: raw.count ?? 0,
-    }));
+    const promise = this.fetchJson<FollowResponse>(url);
     this.followInflight.set(cacheKey, promise);
     try {
       const result = await promise;
