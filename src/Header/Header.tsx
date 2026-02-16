@@ -14,17 +14,21 @@ export function Header() {
   const client = useClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [isFollowingRoot, setIsFollowingRoot] = useState(false);
+  const [hasData, setHasData] = useState(true);
 
   useEffect(() => {
     if (!accountId || accountId === Constants.ROOT_ACCOUNT_ID) return;
     client
-      .kvGet({
-        predecessorId: accountId,
-        currentAccountId: Constants.KV_CONTRACT_ID,
-        key: `graph/follow/${Constants.ROOT_ACCOUNT_ID}`,
+      .getFollowing(accountId)
+      .then((res) => {
+        const follows = res?.data ?? [];
+        setHasData(follows.length > 0);
+        setIsFollowingRoot(follows.includes(Constants.ROOT_ACCOUNT_ID));
       })
-      .then((entry) => setIsFollowingRoot(entry != null && entry.value != null))
-      .catch(() => setIsFollowingRoot(false));
+      .catch(() => {
+        setHasData(true);
+        setIsFollowingRoot(false);
+      });
   }, [accountId, client]);
 
   const allLinks = [
@@ -69,12 +73,17 @@ export function Header() {
 
         {/* Desktop right side */}
         <div className="hidden md:flex items-center gap-3 ml-auto">
-          <FollowButton
-            targetAccountId={Constants.ROOT_ACCOUNT_ID}
-            isFollowing={isFollowingRoot}
-            onToggle={setIsFollowingRoot}
-            label="join"
-          />
+          {!hasData && (
+            <FollowButton
+              targetAccountId={Constants.ROOT_ACCOUNT_ID}
+              isFollowing={isFollowingRoot}
+              onToggle={(now) => {
+                setIsFollowingRoot(now);
+                if (now) setHasData(true);
+              }}
+              label="join"
+            />
+          )}
           <a
             className="text-muted-foreground hover:text-primary transition-colors"
             href="https://github.com/MultiAgency/fastdata-social"
@@ -91,12 +100,17 @@ export function Header() {
 
         {/* Mobile hamburger */}
         <div className="flex items-center gap-2 ml-auto md:hidden">
-          <FollowButton
-            targetAccountId={Constants.ROOT_ACCOUNT_ID}
-            isFollowing={isFollowingRoot}
-            onToggle={setIsFollowingRoot}
-            label="join"
-          />
+          {!hasData && (
+            <FollowButton
+              targetAccountId={Constants.ROOT_ACCOUNT_ID}
+              isFollowing={isFollowingRoot}
+              onToggle={(now) => {
+                setIsFollowingRoot(now);
+                if (now) setHasData(true);
+              }}
+              label="join"
+            />
+          )}
           <AccountNavbar />
           <button
             type="button"
